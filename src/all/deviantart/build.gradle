@@ -6,6 +6,6 @@ ext {
 
 apply from: "$rootDir/common.gradle"
 
-dependencies {
+/*dependencies {
     implementation(project(':lib:googledrive-extractor'))
-}
+}*/
