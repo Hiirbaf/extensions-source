@@ -87,7 +87,7 @@ jobs:
 
       - name: Upload APKs (${{ matrix.chunk.number }})
         uses: actions/upload-artifact@v4
-        if: "github.repository == 'keiyoushi/extensions-source'"
+        if: "github.repository == 'Hiirbaf/extensions-source'"
         with:
           name: "individual-apks-${{ matrix.chunk.number }}"
           path: "**/*.apk"
@@ -99,7 +99,7 @@ jobs:
   publish:
     name: Publish extension repo
     needs: [prepare, build]
-    if: "github.repository == 'keiyoushi/extensions-source'"
+    if: "github.repository == 'Hiirbaf/extensions-source'"
     runs-on: 'ubuntu-24.04'
     steps:
       - name: Download APK artifacts
