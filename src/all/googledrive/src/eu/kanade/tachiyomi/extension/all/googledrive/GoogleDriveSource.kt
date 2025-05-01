@@ -1,11 +1,13 @@
 package eu.kanade.tachiyomi.extension.all.googledrive
 
-import eu.kanade.tachiyomi.source.model.*
+import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import java.net.URLEncoder
 
 class GoogleDriveSource : ParsedHttpSource() {
 
@@ -32,7 +34,7 @@ class GoogleDriveSource : ParsedHttpSource() {
         return SManga.create().apply {
             this.title = title
             this.url = "/drive/folders/$folderId"
-            this.thumbnail_url = null // Puedes usar una imagen fija o la portada del primer capítulo
+            this.thumbnail_url = null
         }
     }
 
@@ -65,18 +67,24 @@ class GoogleDriveSource : ParsedHttpSource() {
         val elements = document.select("div[role='listitem']")
         return elements.mapIndexedNotNull { index, el ->
             val name = el.select("div[aria-label]").attr("aria-label")
-            if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".webp")) {
+            if (
+                name.endsWith(".jpg", ignoreCase = true) ||
+                name.endsWith(".png", ignoreCase = true) ||
+                name.endsWith(".webp", ignoreCase = true)
+            ) {
                 val fileId = el.select("a").attr("href")
                     .substringAfter("/file/d/").substringBefore("/")
                 Page(index, "", "https://drive.google.com/uc?export=download&id=$fileId")
-            } else null
+            } else {
+                null
+            }
         }
     }
 
     override fun imageUrlParse(document: Document): String = ""
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        return popularMangaRequest(page) // No hay búsqueda real, solo lista fija
+        return popularMangaRequest(page)
     }
 
     override fun searchMangaParse(response: okhttp3.Response): MangasPage {
