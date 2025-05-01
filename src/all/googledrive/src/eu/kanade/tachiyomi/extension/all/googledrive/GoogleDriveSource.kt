@@ -5,9 +5,11 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
-import okhttp3.Request
+import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.source.model.FilterList
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import okhttp3.Request
 
 class GoogleDriveSource : ParsedHttpSource() {
 
@@ -16,8 +18,17 @@ class GoogleDriveSource : ParsedHttpSource() {
     override val lang = "all"
     override val supportsLatest = false
 
-    // TODO: Puedes cambiar esto por tu carpeta raíz pública
     private val rootFolderId = "1A2B3C4D5E6F"
+
+    // Implementación del método abstracto
+    override fun latestUpdatesFromElement(element: Element): SManga {
+        val title = element.select("div[aria-label]").attr("aria-label")
+        return SManga.create().apply {
+            this.title = title
+            this.url = "/drive/folders/"
+            this.thumbnail_url = null
+        }
+    }
 
     override fun popularMangaRequest(page: Int): Request {
         val url = "$baseUrl/drive/folders/$rootFolderId"
