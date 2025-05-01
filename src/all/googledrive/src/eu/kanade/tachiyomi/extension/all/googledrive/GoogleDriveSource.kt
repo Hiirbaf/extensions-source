@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.all.googledrive
 
+import eu.kanade.tachiyomi.network.asJsoup
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -7,9 +8,9 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
-import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import okhttp3.Request
 
 class GoogleDriveSource : ParsedHttpSource() {
 
@@ -20,7 +21,7 @@ class GoogleDriveSource : ParsedHttpSource() {
 
     private val rootFolderId = "1A2B3C4D5E6F"
 
-    // Implementación del método abstracto
+    // Implementación de método abstracto
     override fun latestUpdatesFromElement(element: Element): SManga {
         val title = element.select("div[aria-label]").attr("aria-label")
         return SManga.create().apply {
@@ -28,6 +29,11 @@ class GoogleDriveSource : ParsedHttpSource() {
             this.url = "/drive/folders/"
             this.thumbnail_url = null
         }
+    }
+
+    // Implementación del método que estaba faltando
+    override fun latestUpdatesNextPageSelector(): String? {
+        return null // No hay página siguiente en este caso
     }
 
     override fun popularMangaRequest(page: Int): Request {
@@ -99,7 +105,7 @@ class GoogleDriveSource : ParsedHttpSource() {
     }
 
     override fun searchMangaParse(response: okhttp3.Response): MangasPage {
-        val document = response.asJsoup()
+        val document = response.asJsoup() // Asegúrate de importar esta función
         val mangas = document.select(popularMangaSelector()).map { popularMangaFromElement(it) }
         return MangasPage(mangas, false)
     }
