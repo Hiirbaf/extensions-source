@@ -100,7 +100,7 @@ jobs:
   publish:
     name: Publish extension repo
     needs: [prepare, build]
-    if: "github.repository == 'keiyoushi/extensions-source'"
+    if: "github.repository == 'hiirbaf/extensions-source'"
     runs-on: 'ubuntu-24.04'
     steps:
       - name: Download APK artifacts
