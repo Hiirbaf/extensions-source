@@ -19,21 +19,13 @@ class GoogleDriveSource : ParsedHttpSource() {
     override val lang = "all"
     override val supportsLatest = false
 
+    // TODO: Cambia esto por tu carpeta raíz pública
     private val rootFolderId = "1A2B3C4D5E6F"
 
-    // Implementación de método abstracto
-    override fun latestUpdatesFromElement(element: Element): SManga {
-        val title = element.select("div[aria-label]").attr("aria-label")
-        return SManga.create().apply {
-            this.title = title
-            this.url = "/drive/folders/"
-            this.thumbnail_url = null
-        }
-    }
-
-    // Implementación del método que estaba faltando
-    override fun latestUpdatesNextPageSelector(): String? {
-        return null // No hay página siguiente en este caso
+    // Implementa el método abstracto
+    override fun latestUpdatesRequest(page: Int): Request {
+        // Lógica para "últimas actualizaciones" (puedes personalizarlo según necesites)
+        return Request.Builder().url(baseUrl).build()
     }
 
     override fun popularMangaRequest(page: Int): Request {
@@ -51,7 +43,7 @@ class GoogleDriveSource : ParsedHttpSource() {
         return SManga.create().apply {
             this.title = title
             this.url = "/drive/folders/$folderId"
-            this.thumbnail_url = null
+            this.thumbnail_url = null // Puedes usar una imagen fija o la portada del primer capítulo
         }
     }
 
@@ -84,28 +76,22 @@ class GoogleDriveSource : ParsedHttpSource() {
         val elements = document.select("div[role='listitem']")
         return elements.mapIndexedNotNull { index, el ->
             val name = el.select("div[aria-label]").attr("aria-label")
-            if (
-                name.endsWith(".jpg", ignoreCase = true) ||
-                name.endsWith(".png", ignoreCase = true) ||
-                name.endsWith(".webp", ignoreCase = true)
-            ) {
+            if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".webp")) {
                 val fileId = el.select("a").attr("href")
                     .substringAfter("/file/d/").substringBefore("/")
                 Page(index, "", "https://drive.google.com/uc?export=download&id=$fileId")
-            } else {
-                null
-            }
+            } else null
         }
     }
 
     override fun imageUrlParse(document: Document): String = ""
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        return popularMangaRequest(page)
+        return popularMangaRequest(page) // No hay búsqueda real, solo lista fija
     }
 
     override fun searchMangaParse(response: okhttp3.Response): MangasPage {
-        val document = response.asJsoup() // Asegúrate de importar esta función
+        val document = response.asJsoup()
         val mangas = document.select(popularMangaSelector()).map { popularMangaFromElement(it) }
         return MangasPage(mangas, false)
     }
