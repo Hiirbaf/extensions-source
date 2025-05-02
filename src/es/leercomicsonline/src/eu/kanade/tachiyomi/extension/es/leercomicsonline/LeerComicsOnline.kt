@@ -82,7 +82,7 @@ class LeerComicsOnline : HttpSource() {
         baseUrl.toHttpUrl().newBuilder().apply {
             addEncodedPathSegments(manga.url.removePrefix("/"))
         }.build(),
-        headers
+        headers,
     )
 
     override fun chapterListParse(response: Response): List<SChapter> {
@@ -107,7 +107,7 @@ class LeerComicsOnline : HttpSource() {
             addQueryParameter("id", chapter.url.toHttpUrl().queryParameter("id"))
             addQueryParameter("letter", chapter.url.toHttpUrl().queryParameter("letter"))
         }.build(),
-        headers
+        headers,
     )
 
     override fun pageListParse(response: Response): List<Page> {
