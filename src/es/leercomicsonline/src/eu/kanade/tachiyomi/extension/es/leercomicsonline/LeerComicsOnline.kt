@@ -90,21 +90,21 @@ class LeerComicsOnline : HttpSource() {
     }.build().toString()
 
     override fun chapterListParse(response: Response): List<SChapter> =
-    json.decodeFromString<List<Comic>>(response.body.string()).reversed().map {
-        val chapterUrl = baseUrl.toHttpUrl().newBuilder().apply {
-            addPathSegment("api")
-            addPathSegment("pages")
-            addQueryParameter("id", it.id.toString())
-            addQueryParameter("letter", it.url.first().toString())
-            addQueryParameter("slug", it.url)
-        }.build().toString()
+        json.decodeFromString<List<Comic>>(response.body.string()).reversed().map {
+            val chapterUrl = baseUrl.toHttpUrl().newBuilder().apply {
+                addPathSegment("api")
+                addPathSegment("pages")
+                addQueryParameter("id", it.id.toString())
+                addQueryParameter("letter", it.url.first().toString())
+                addQueryParameter("slug", it.url)
+            }.build().toString()
 
-        Log.e("LeerComicsOnline", "Capítulo con error: $chapterUrl")
+            Log.e("LeerComicsOnline", "Capítulo con error: $chapterUrl")
 
-        SChapter.create().apply {
-            name = it.title
-            setUrlWithoutDomain(chapterUrl)
-        }
+            SChapter.create().apply {
+                name = it.title
+                setUrlWithoutDomain(chapterUrl)
+            }
     }
     override fun getChapterUrl(chapter: SChapter): String = baseUrl.toHttpUrl().newBuilder().apply {
         addPathSegment((baseUrl + chapter.url).toHttpUrl().queryParameter("slug").toString())
