@@ -81,9 +81,9 @@ class GoogleDriveSource : ParsedHttpSource() {
                     .substringAfter("/file/d/").substringBefore("/")
                 Page(index, "", "https://drive.google.com/uc?export=download&id=$fileId")
             } else {
-            null
+                null
+            }
         }
-    }
     }
 
     override fun imageUrlParse(document: Document): String = ""
