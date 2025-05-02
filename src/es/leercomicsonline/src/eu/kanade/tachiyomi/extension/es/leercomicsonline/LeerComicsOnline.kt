@@ -56,7 +56,7 @@ class LeerComicsOnline : HttpSource() {
                     title = comic.title
                     thumbnail_url = "$baseUrl/images/${comic.url}-300x461.jpg"
                     setUrlWithoutDomain(
-                        "/api/comics?serieId=${comic.id}&slug=${comic.url}"
+                        "/api/comics?serieId=${comic.id}&slug=${comic.url}",
                     )
                 }
             },
