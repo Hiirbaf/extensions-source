@@ -30,9 +30,7 @@ class GoogleDriveSource : ParsedHttpSource() {
         return popularMangaFromElement(element)
     }
 
-    override fun latestUpdatesNextPageSelector(): String? {
-    return null
-    }
+    override fun latestUpdatesNextPageSelector(): String? = null
 
     override fun popularMangaRequest(page: Int): Request {
         val url = "$baseUrl/drive/folders/$rootFolderId"
@@ -103,4 +101,6 @@ class GoogleDriveSource : ParsedHttpSource() {
         val mangas = document.select(popularMangaSelector()).map { popularMangaFromElement(it) }
         return MangasPage(mangas, false)
     }
+
+    override fun searchMangaNextPageSelector(): String? = null
 }
