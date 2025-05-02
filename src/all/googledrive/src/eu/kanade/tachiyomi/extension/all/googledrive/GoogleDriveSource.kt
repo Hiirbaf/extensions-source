@@ -30,6 +30,8 @@ class GoogleDriveSource : ParsedHttpSource() {
         return popularMangaFromElement(element)
     }
 
+    override fun latestUpdatesSelector(): String = popularMangaSelector()
+
     override fun latestUpdatesNextPageSelector(): String? = null
 
     override fun popularMangaRequest(page: Int): Request {
