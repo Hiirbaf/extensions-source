@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.es.leercomicsonline
 
+import android.util.Log
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -98,7 +99,6 @@ class LeerComicsOnline : HttpSource() {
             addQueryParameter("slug", it.url)
         }.build().toString()
 
-        // Aquí agregamos el log para ver qué URL está causando el error
         Log.e("LeerComicsOnline", "Capítulo con error: $chapterUrl")
 
         SChapter.create().apply {
@@ -106,7 +106,6 @@ class LeerComicsOnline : HttpSource() {
             setUrlWithoutDomain(chapterUrl)
         }
     }
-
     override fun getChapterUrl(chapter: SChapter): String = baseUrl.toHttpUrl().newBuilder().apply {
         addPathSegment((baseUrl + chapter.url).toHttpUrl().queryParameter("slug").toString())
     }.build().toString()
