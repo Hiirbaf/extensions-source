@@ -22,10 +22,12 @@ class GoogleDriveSource : ParsedHttpSource() {
     // TODO: Cambia esto por tu carpeta raíz pública
     private val rootFolderId = "1A2B3C4D5E6F"
 
-    // Implementa el método abstracto
     override fun latestUpdatesRequest(page: Int): Request {
-        // Lógica para "últimas actualizaciones" (puedes personalizarlo según necesites)
         return Request.Builder().url(baseUrl).build()
+    }
+
+    override fun latestUpdatesFromElement(element: Element): SManga {
+        return popularMangaFromElement(element)
     }
 
     override fun popularMangaRequest(page: Int): Request {
@@ -43,7 +45,7 @@ class GoogleDriveSource : ParsedHttpSource() {
         return SManga.create().apply {
             this.title = title
             this.url = "/drive/folders/$folderId"
-            this.thumbnail_url = null // Puedes usar una imagen fija o la portada del primer capítulo
+            this.thumbnail_url = null
         }
     }
 
@@ -89,7 +91,7 @@ class GoogleDriveSource : ParsedHttpSource() {
     override fun imageUrlParse(document: Document): String = ""
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        return popularMangaRequest(page) // No hay búsqueda real, solo lista fija
+        return popularMangaRequest(page)
     }
 
     override fun searchMangaParse(response: okhttp3.Response): MangasPage {
