@@ -1,11 +1,7 @@
 package eu.kanade.tachiyomi.extension.es.leercomicsonline
 
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.source.model.FilterList
-import eu.kanade.tachiyomi.source.model.MangasPage
-import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.source.model.SChapter
-import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.*
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -54,21 +50,13 @@ class LeerComicsOnline : HttpSource() {
                 SManga.create().apply {
                     initialized = true
                     title = comic.title
-                    thumbnail_url = baseUrl.toHttpUrl().newBuilder().apply {
-                        addPathSegment("images")
-                        addPathSegment("${comic.url}-300x461.jpg")
-                    }.build().toString()
+                    thumbnail_url = "$baseUrl/images/${comic.url}-300x461.jpg"
                     setUrlWithoutDomain(
-                        baseUrl.toHttpUrl().newBuilder().apply {
-                            addPathSegment("api")
-                            addPathSegments("comics")
-                            addQueryParameter("serieId", comic.id.toString())
-                            addQueryParameter("slug", comic.url)
-                        }.build().toString(),
+                        "/api/comics?serieId=${comic.id}&slug=${comic.url}"
                     )
                 }
             },
-            comics.count() > (page - 1) * comicsPerPage,
+            comics.count() > (page * comicsPerPage),
         )
     }
 
@@ -83,43 +71,62 @@ class LeerComicsOnline : HttpSource() {
         )
     }
 
-    override fun getMangaUrl(manga: SManga): String = baseUrl.toHttpUrl().newBuilder().apply {
-        addPathSegment("categorias")
-        addPathSegment((baseUrl + manga.url).toHttpUrl().queryParameter("slug").toString())
-    }.build().toString()
+    override fun getMangaUrl(manga: SManga): String =
+        "$baseUrl/categorias/${manga.url.toHttpUrl().queryParameter("slug")}"
 
-    override fun chapterListParse(response: Response): List<SChapter> =
-        json.decodeFromString<List<Comic>>(response.body.string()).reversed().map {
+    override fun chapterListRequest(manga: SManga): Request = GET(
+        baseUrl.toHttpUrl().newBuilder().apply {
+            addEncodedPathSegments(manga.url.removePrefix("/"))
+        }.build(),
+        headers
+    )
+
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val slug = response.request.url.queryParameter("slug")!!
+        val comics = json.decodeFromString<List<Comic>>(response.body.string())
+        return comics.reversed().map {
             SChapter.create().apply {
                 name = it.title
-                setUrlWithoutDomain(
-                    baseUrl.toHttpUrl().newBuilder().apply {
-                        addPathSegment("api")
-                        addPathSegment("pages")
-                        addQueryParameter("id", it.id.toString())
-                        addQueryParameter(
-                            "letter",
-                            it.url.first().toString(),
-                        )
-                        addQueryParameter("slug", it.url)
-                    }.build().toString(),
-                )
+                setUrlWithoutDomain("/api/pages?id=${it.id}&letter=${slug.first()}&slug=$slug")
             }
         }
+    }
 
-    override fun getChapterUrl(chapter: SChapter): String = baseUrl.toHttpUrl().newBuilder().apply {
-        addPathSegment((baseUrl + chapter.url).toHttpUrl().queryParameter("slug").toString())
-    }.build().toString()
+    override fun getChapterUrl(chapter: SChapter): String {
+        val slug = chapter.url.toHttpUrl().queryParameter("slug") ?: return baseUrl
+        return "$baseUrl/$slug"
+    }
+
+    override fun pageListRequest(chapter: SChapter): Request = GET(
+        baseUrl.toHttpUrl().newBuilder().apply {
+            addEncodedPathSegments("api/pages")
+            addQueryParameter("id", chapter.url.toHttpUrl().queryParameter("id"))
+            addQueryParameter("letter", chapter.url.toHttpUrl().queryParameter("letter"))
+        }.build(),
+        headers
+    )
 
     override fun pageListParse(response: Response): List<Page> {
-        return try { // some chapters are just empty
+        return try {
             json.decodeFromString<List<String>>(response.body.string()).mapIndexed { index, url ->
                 Page(index, imageUrl = url)
             }
-        } catch (exception: Exception) {
+        } catch (e: Exception) {
             emptyList()
         }
     }
+
+    override fun imageUrlParse(response: Response): String =
+        throw UnsupportedOperationException()
+
+    override fun latestUpdatesParse(response: Response): MangasPage =
+        throw UnsupportedOperationException()
+
+    override fun latestUpdatesRequest(page: Int): Request =
+        throw UnsupportedOperationException()
+
+    override fun mangaDetailsParse(response: Response): SManga =
+        throw UnsupportedOperationException()
 
     @Serializable
     class Comic(
@@ -127,12 +134,4 @@ class LeerComicsOnline : HttpSource() {
         val url: String,
         val id: Int,
     )
-
-    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
-    override fun latestUpdatesParse(response: Response): MangasPage =
-        throw UnsupportedOperationException()
-
-    override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
-    override fun mangaDetailsParse(response: Response): SManga =
-        throw UnsupportedOperationException()
 }
