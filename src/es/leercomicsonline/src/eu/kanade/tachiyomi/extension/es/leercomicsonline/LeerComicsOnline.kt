@@ -105,7 +105,7 @@ class LeerComicsOnline : HttpSource() {
                 name = it.title
                 setUrlWithoutDomain(chapterUrl)
             }
-    }
+        }
     override fun getChapterUrl(chapter: SChapter): String = baseUrl.toHttpUrl().newBuilder().apply {
         addPathSegment((baseUrl + chapter.url).toHttpUrl().queryParameter("slug").toString())
     }.build().toString()
