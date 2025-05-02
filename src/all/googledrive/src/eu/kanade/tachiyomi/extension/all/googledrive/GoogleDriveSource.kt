@@ -32,8 +32,6 @@ class GoogleDriveSource : ParsedHttpSource() {
 
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
 
-    override fun searchMangaNextPageSelector(): String? = null
-
     override fun latestUpdatesSelector(): String = popularMangaSelector()
 
     override fun latestUpdatesNextPageSelector(): String? = null
