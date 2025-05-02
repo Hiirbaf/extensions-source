@@ -73,15 +73,17 @@ class GoogleDriveSource : ParsedHttpSource() {
     }
 
     override fun pageListParse(document: Document): List<Page> {
-        val elements = document.select("div[role='listitem']")
-        return elements.mapIndexedNotNull { index, el ->
-            val name = el.select("div[aria-label]").attr("aria-label")
-            if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".webp")) {
-                val fileId = el.select("a").attr("href")
-                    .substringAfter("/file/d/").substringBefore("/")
-                Page(index, "", "https://drive.google.com/uc?export=download&id=$fileId")
-            } else null
+    val elements = document.select("div[role='listitem']")
+    return elements.mapIndexedNotNull { index, el ->
+        val name = el.select("div[aria-label]").attr("aria-label")
+        if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".webp")) {
+            val fileId = el.select("a").attr("href")
+                .substringAfter("/file/d/").substringBefore("/")
+            Page(index, "", "https://drive.google.com/uc?export=download&id=$fileId")
+        } else {
+            null
         }
+    }
     }
 
     override fun imageUrlParse(document: Document): String = ""
