@@ -294,7 +294,6 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
                 } else {
                     Page(idx, imageUrl = decryptedLink)
                 }
-
             }
         } catch (_: Exception) { // We'll catch a generic exception since it can throw several types depending on the returned encrypted URL
             throw IOException("Parse failed, check Keiyoushi discord for configuration updates")
@@ -557,8 +556,7 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
                 field = configResponse.parseAs<RemoteConfigDTO>()
                 configResponse.close()
                 return field
-            }
-            catch (_: IOException) {
+            } catch (_: IOException) {
                 return null
             }
         }
@@ -571,7 +569,7 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
         val onSinglePreParse: String?,
         val onPostParse: String?,
         val onPreDecrypt: String?,
-        val onPostDecrypt: String?
+        val onPostDecrypt: String?,
     )
 
     companion object {
