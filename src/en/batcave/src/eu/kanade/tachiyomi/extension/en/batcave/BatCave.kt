@@ -29,7 +29,6 @@ class BatCave : HttpSource() {
     override val lang = "en"
     override val supportsLatest = true
     override val baseUrl = "https://batcave.biz"
-    override val mangaSubGenre: String = "comic"
 
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
@@ -181,6 +180,7 @@ class BatCave : HttpSource() {
             thumbnail_url = document.selectFirst("div.page__poster img")?.absUrl("src")
             description = document.selectFirst("div.page__text")?.wholeText()
             author = document.selectFirst(".page__list > li:has(> div:contains(Publisher))")?.ownText()
+            genre = "Comic"
             status = when (document.selectFirst(".page__list > li:has(> div:contains(release type))")?.ownText()?.trim()) {
                 "Ongoing" -> SManga.ONGOING
                 "Complete" -> SManga.COMPLETED
