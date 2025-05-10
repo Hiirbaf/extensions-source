@@ -29,6 +29,7 @@ class BatCave : HttpSource() {
     override val lang = "en"
     override val supportsLatest = true
     override val baseUrl = "https://batcave.biz"
+    override val mangaSubGenre: String = "comic"
 
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
