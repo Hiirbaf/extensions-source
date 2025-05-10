@@ -242,6 +242,11 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         genre = document.select("a.py-2").joinToString(", ") {
             it.text()
         }
+             // Añadir tipo (Manga, Manhwa, Manhua) al género
+        val type = document.selectFirst("h1.book-type")?.text()?.capitalize()
+        if (!type.isNullOrBlank() && !genre.contains(type, ignoreCase = true)) {
+            genre += ", $type"
+        }
         description = document.select("p.element-description").text()
         status = parseStatus(document.select("span.book-status").text())
         thumbnail_url = document.select(".book-thumbnail").attr("src")
