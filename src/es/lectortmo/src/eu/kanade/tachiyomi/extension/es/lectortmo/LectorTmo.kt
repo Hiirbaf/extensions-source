@@ -243,6 +243,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         val type = document.selectFirst("h1.book-type")
             ?.text()
             ?.trim()
+            ?.lowercase()
             ?.replaceFirstChar { it.uppercase() }
         genre = buildString {
             append(document.select("a.py-2").joinToString(", ") { it.text() })
