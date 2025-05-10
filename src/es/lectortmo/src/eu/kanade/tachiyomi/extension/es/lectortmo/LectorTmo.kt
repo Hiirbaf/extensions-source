@@ -244,7 +244,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         genre = buildString {
             append(document.select("a.py-2").joinToString(", ") { it.text() })
             if (!type.isNullOrBlank()) {
-            val typeNormalized = type.trim()
+                val typeNormalized = type.trim()
                 if (!this.contains(typeNormalized, ignoreCase = true)) {
                     append(", $typeNormalized")
                 }
