@@ -244,8 +244,8 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         }
         // Añadir tipo (Manga, Manhwa, Manhua) al género
         val type = document.selectFirst("h1.book-type")?.text()
-        ?.lowercase()
-        ?.replaceFirstChar { it.uppercase() }
+            ?.lowercase()
+            ?.replaceFirstChar { it.uppercase() }
         if (!type.isNullOrBlank() && !genre.contains(type, ignoreCase = true)) {
             genre += ", $type"
         }
