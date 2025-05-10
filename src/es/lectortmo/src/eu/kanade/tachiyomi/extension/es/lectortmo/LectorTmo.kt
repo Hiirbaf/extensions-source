@@ -242,7 +242,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         genre = document.select("a.py-2").joinToString(", ") {
             it.text()
         }
-             // Añadir tipo (Manga, Manhwa, Manhua) al género
+        // Añadir tipo (Manga, Manhwa, Manhua) al género
         val type = document.selectFirst("h1.book-type")?.text()?.capitalize()
         if (!type.isNullOrBlank() && !genre.contains(type, ignoreCase = true)) {
             genre += ", $type"
