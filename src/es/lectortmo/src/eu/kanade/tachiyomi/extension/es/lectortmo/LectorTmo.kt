@@ -240,14 +240,14 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             artist = it.last()?.attr("title")?.substringAfter(", ")
         }
         // Añadir tipo (Manga, Manhwa, Manhua) al género
-        val type = document.selectFirst("h1.book-type")?.text()?.capitalize()
+        val type = document.selectFirst("h1.book-type")
+            ?.text()
+            ?.trim()
+            ?.replaceFirstChar { it.uppercase() }
         genre = buildString {
             append(document.select("a.py-2").joinToString(", ") { it.text() })
-            if (!type.isNullOrBlank()) {
-                val typeNormalized = type.trim()
-                if (!this.contains(typeNormalized, ignoreCase = true)) {
-                    append(", $typeNormalized")
-                }
+            if (!type.isNullOrBlank() && !contains(type, ignoreCase = true)) {
+                append(", $type")
             }
         }
         description = document.select("p.element-description").text()
