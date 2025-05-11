@@ -1,15 +1,15 @@
 package eu.kanade.tachiyomi.extension.es.marmota
 
+import java.text.SimpleDateFormat
+import java.util.Locale
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
+import org.jsoup.nodes.Document
 import eu.kanade.tachiyomi.multisrc.madara.Madara
+import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.SManga
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Request
-import eu.kanade.tachiyomi.network.GET
-import org.jsoup.nodes.Document
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class Marmota : Madara(
     "Marmota",
