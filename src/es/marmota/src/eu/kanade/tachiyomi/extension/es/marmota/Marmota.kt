@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.extension.es.marmota
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
+import eu.kanade.tachiyomi.multisrc.madara.MadaraFilters
+import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.SManga
 import org.jsoup.nodes.Document
 import java.text.SimpleDateFormat
@@ -15,6 +17,12 @@ class Marmota : Madara(
     override val mangaSubString: String = "comic"
     override val useNewChapterEndpoint = true
     override val useLoadMoreRequest = LoadMoreStrategy.Never
+
+    override fun getFilterList(): FilterList {
+        val original = super.getFilterList()
+        val custom = original.filterNot { it is MadaraFilters.GenreConditionFilter }
+        return FilterList(custom)
+    }
 
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = super.mangaDetailsParse(document)
