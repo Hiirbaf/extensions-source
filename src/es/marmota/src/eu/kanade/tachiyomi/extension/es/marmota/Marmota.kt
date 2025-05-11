@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.extension.es.marmota
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
-import eu.kanade.tachiyomi.multisrc.madara.MadaraFilters
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.SManga
 import org.jsoup.nodes.Document
@@ -18,15 +17,32 @@ class Marmota : Madara(
     override val useNewChapterEndpoint = true
     override val useLoadMoreRequest = LoadMoreStrategy.Never
 
+    // Modificación en la búsqueda para no depender de la condición de género
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        val url = "$baseUrl/comic/".toHttpUrl().newBuilder().apply {
+            // Agregamos el filtro de género sin necesidad de que haya uno seleccionado
+            filters.firstInstanceOrNull<GenreFilter>()?.addFilterToUrl(this)
+            if (page > 1) {
+                addPathSegments("page/$page/")
+            }
+        }.build()
+
+        return GET(url, headers)
+    }
+
     override fun getFilterList(): FilterList {
-        val original = super.getFilterList()
-        val custom = original.filterNot { it is MadaraFilters.GenreConditionFilter }
-        return FilterList(custom)
+        val filters = super.getFilterList().filters.filterNot { filter ->
+            // Elimina la condición de género
+            filter is GenreConditionFilter
+        }
+
+        return FilterList(filters)
     }
 
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = super.mangaDetailsParse(document)
 
+        // Modificar los géneros para asegurarnos de que "Comic" se agrega correctamente
         val genres = manga.genre.orEmpty()
             .split(", ")
             .map { it.trim() }
