@@ -1,8 +1,12 @@
 package eu.kanade.tachiyomi.extension.es.marmota
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
+import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.SManga
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
+import eu.kanade.tachiyomi.network.GET
 import org.jsoup.nodes.Document
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -21,7 +25,9 @@ class Marmota : Madara(
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/comic/".toHttpUrl().newBuilder().apply {
             // Agregamos el filtro de género sin necesidad de que haya uno seleccionado
-            filters.firstInstanceOrNull<GenreFilter>()?.addFilterToUrl(this)
+            val genreFilter = filters.filterIsInstance<GenreFilter>().firstOrNull()
+            genreFilter?.addFilterToUrl(this)
+
             if (page > 1) {
                 addPathSegments("page/$page/")
             }
@@ -36,7 +42,7 @@ class Marmota : Madara(
             filter is GenreConditionFilter
         }
 
-        return FilterList(filters)
+        return FilterList(filters = filters)
     }
 
     override fun mangaDetailsParse(document: Document): SManga {
