@@ -108,7 +108,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     override fun popularMangaParse(response: Response): MangasPage {
         val result = json.decodeFromString<PayloadSeriesDto>(response.body.string())
-        val mangaList = result.data.map { it.toSManga() }
+        val mangaList = result.data.mapNotNull { it.toSManga() }
         return MangasPage(mangaList, false)
     }
 
@@ -122,7 +122,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     override fun latestUpdatesParse(response: Response): MangasPage {
         val result = json.decodeFromString<PayloadLatestDto>(response.body.string())
-        val mangaList = result.data.filter { it.toSManga() }
+        val mangaList = result.data.mapNotNull { it.toSManga() }
         return MangasPage(mangaList, result.hasNextPage())
     }
 
