@@ -158,7 +158,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     override fun searchMangaParse(response: Response): MangasPage {
         val result = json.decodeFromString<PayloadSeriesDto>(response.body.string())
-        val mangaList = result.data.filter { it.toSManga() }
+        val mangaList = result.data.map { it.toSManga() }
         return MangasPage(mangaList, result.hasNextPage())
     }
 
