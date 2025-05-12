@@ -61,7 +61,7 @@ class SeriesDto(
         thumbnail_url = cover
         description = summary
         status = parseStatus(this@SeriesDto.status?.id)
-        genre = (genres?.map { it.name.trim() } ?: emptyList() + "Manhwa").joinToString()
+        genre = ((genres?.map { it.name.trim() } ?: emptyList()) + "Manhwa").joinToString()
     }
 
     private fun parseStatus(statusId: Long?) = when (statusId) {
