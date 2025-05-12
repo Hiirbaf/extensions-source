@@ -54,7 +54,6 @@ class SeriesDto(
         url = "/series/comic-$slug#$id"
         title = name
         thumbnail_url = cover
-        mangaType = SManga.TYPE_MANHWA
     }
 
     fun toSMangaDetails() = SManga.create().apply {
@@ -62,8 +61,7 @@ class SeriesDto(
         thumbnail_url = cover
         description = summary
         status = parseStatus(this@SeriesDto.status?.id)
-        genre = genres?.joinToString { it.name.trim() }
-        mangaType = SManga.TYPE_MANHWA
+        genre = buildList { genres?.forEach { add(it.name.trim()) } add("Manhwa") }.joinToString()
     }
 
     private fun parseStatus(statusId: Long?) = when (statusId) {
