@@ -26,7 +26,7 @@ class Marmota : Madara(
         val altNameText = altNameElement?.ownText()
 
         if (!altNameText.isNullOrBlank() && !altNameText.contains(updatingRegex)) {
-            val formattedAltName = "<b>$altName $altNameText</b>"
+            val formattedAltName = "**$altName $altNameText**"
 
             manga.description = when {
                 manga.description.isNullOrBlank() -> formattedAltName
