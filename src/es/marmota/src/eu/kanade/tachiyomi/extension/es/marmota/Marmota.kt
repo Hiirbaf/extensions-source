@@ -15,11 +15,11 @@ class Marmota : Madara(
     override val mangaSubString: String = "comic"
     override val useNewChapterEndpoint = true
     override val useLoadMoreRequest = LoadMoreStrategy.Never
-    private val altNameSelector = ".post-content_item:contains(Alt) .summary-content"
-    private val altName = "Nombre alternativo"
-    private val updatingRegex = "Updating|Atualizando".toRegex(RegexOption.IGNORE_CASE)
+    override val altNameSelector = ".post-content_item:contains(Alt) .summary-content"
+    override val altName = "Nombre alternativo"
+    override val updatingRegex = "Updating|Atualizando".toRegex(RegexOption.IGNORE_CASE)
 
-    private fun String.notUpdating(): Boolean {
+    override fun String.notUpdating(): Boolean {
         return !this.contains(updatingRegex)
     }
 
