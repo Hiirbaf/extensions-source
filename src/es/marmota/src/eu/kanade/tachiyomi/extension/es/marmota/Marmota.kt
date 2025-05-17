@@ -21,9 +21,9 @@ class Marmota : Madara(
     private val altName = "Nombre alternativo"
     private val updatingRegex = "Updating|Atualizando".toRegex(RegexOption.IGNORE_CASE)
 
-private fun String.notUpdating(): Boolean {
-    return !this.contains(updatingRegex)
-}
+    private fun String.notUpdating(): Boolean {
+        return !this.contains(updatingRegex)
+    }
 
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = super.mangaDetailsParse(document)
