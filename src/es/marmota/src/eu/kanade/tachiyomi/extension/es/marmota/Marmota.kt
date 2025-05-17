@@ -2,8 +2,6 @@ package eu.kanade.tachiyomi.extension.es.marmota
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
 import eu.kanade.tachiyomi.source.model.SManga
-import okhttp3.Response
-import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.text.SimpleDateFormat
 import java.util.Locale
