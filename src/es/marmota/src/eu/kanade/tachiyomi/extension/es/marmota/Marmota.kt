@@ -19,17 +19,13 @@ class Marmota : Madara(
     override val altName = "Nombre alternativo"
     override val updatingRegex = "Updating|Atualizando".toRegex(RegexOption.IGNORE_CASE)
 
-    override fun String.notUpdating(): Boolean {
-        return !this.contains(updatingRegex)
-    }
-
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = super.mangaDetailsParse(document)
 
         val altNameElement = document.selectFirst(altNameSelector)
         val altNameText = altNameElement?.ownText()
 
-        if (!altNameText.isNullOrBlank() && altNameText.notUpdating()) {
+        if (!altNameText.isNullOrBlank() && !altNameText.contains(updatingRegex)) {
             val formattedAltName = "<b>$altName $altNameText</b>"
 
             manga.description = when {
