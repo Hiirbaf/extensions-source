@@ -486,6 +486,6 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
         private const val IMAGE_REMOTE_CONFIG_SUMMARY = "Remote Config Link"
         private const val IMAGE_REMOTE_CONFIG_PREF = "imageuseremotelinkpref"
         private const val IMAGE_REMOTE_CONFIG_DEFAULT =
-            "https://raw.githubusercontent.com/keiyoushi/extensions-source/refs/heads/main/src/en/readcomiconline/config.json"
+            "https://raw.githubusercontent.com/JakeeLuwi/rco-decrypt/refs/heads/main/jsonDecrypt.json"
     }
 }
