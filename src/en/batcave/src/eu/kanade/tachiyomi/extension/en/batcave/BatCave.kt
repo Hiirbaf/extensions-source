@@ -175,7 +175,8 @@ class BatCave : HttpSource() {
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
         val publisher = document.selectFirst(".page__list > li:has(> div:contains(Publisher))")?.ownText()
-        val genres = document.selectFirst(".page__list > li:has(> div:contains(Genre))")?.ownText()?.split(",")?.map { it.trim() }?.toMutableList() ?: mutableListOf()
+        val genreElements = document.select("div.page__tags a")
+        val genres = genreElements.map { it.text() }.toMutableList()
         if (!publisher.isNullOrBlank()) {
             genres.add("Publisher: $publisher")
         }
