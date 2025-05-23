@@ -177,15 +177,16 @@ class BatCave : HttpSource() {
         val publisher = document.selectFirst(".page__list > li:has(> div:contains(Publisher))")?.ownText()
         val genreElements = document.select("div.page__tags a")
         val genres = genreElements.map { it.text() }.toMutableList()
-        if (!publisher.isNullOrBlank()) {
-            genres.add("Publisher: $publisher")
+        val writer = document.selectFirst(".page__list > li:has(> div:contains(Writer))")?.ownText()
+        val author = writer ?: publisher
+        if (!publisher.isNullOrBlank() && publisher != author) {
+            genres.add(publisher)
         }
 
         return SManga.create().apply {
             title = document.selectFirst("header.page__header h1")!!.text()
             thumbnail_url = document.selectFirst("div.page__poster img")?.absUrl("src")
             description = document.selectFirst("div.page__text")?.wholeText()
-            author = document.selectFirst(".page__list > li:has(> div:contains(Writer))")?.ownText()
             artist = document.selectFirst(".page__list > li:has(> div:contains(Artist))")?.ownText()
             genre = genres.joinToString(", ")
             status = when (document.selectFirst(".page__list > li:has(> div:contains(release type))")?.ownText()?.trim()) {
