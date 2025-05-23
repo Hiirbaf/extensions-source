@@ -174,6 +174,11 @@ class BatCave : HttpSource() {
 
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
+        val publisher = document.selectFirst(".page__list > li:has(> div:contains(Publisher))")?.ownText()
+        val genres = document.selectFirst(".page__list > li:has(> div:contains(Genre))")?.ownText()?.split(",")?.map { it.trim() }?.toMutableList() ?: mutableListOf()
+        if (!publisher.isNullOrBlank()) {
+    genres.add("Publisher: $publisher")
+        }
 
         return SManga.create().apply {
             title = document.selectFirst("header.page__header h1")!!.text()
@@ -181,7 +186,7 @@ class BatCave : HttpSource() {
             description = document.selectFirst("div.page__text")?.wholeText()
             author = document.selectFirst(".page__list > li:has(> div:contains(Writer))")?.ownText()
             artist = document.selectFirst(".page__list > li:has(> div:contains(Artist))")?.ownText()
-            genre = listOfNotNull(document.selectFirst(".page__list > li:has(> div:contains(Genre))")?.ownText(), document.selectFirst(".page__list > li:has(> div:contains(Publisher))")?.ownText())
+            genre = genres.joinToString(", ")
             status = when (document.selectFirst(".page__list > li:has(> div:contains(release type))")?.ownText()?.trim()) {
                 "Ongoing" -> SManga.ONGOING
                 "Complete" -> SManga.COMPLETED
