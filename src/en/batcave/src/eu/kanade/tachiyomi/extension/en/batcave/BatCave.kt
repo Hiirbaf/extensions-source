@@ -187,6 +187,7 @@ class BatCave : HttpSource() {
             title = document.selectFirst("header.page__header h1")!!.text()
             thumbnail_url = document.selectFirst("div.page__poster img")?.absUrl("src")
             description = document.selectFirst("div.page__text")?.wholeText()
+            this.author = author
             artist = document.selectFirst(".page__list > li:has(> div:contains(Artist))")?.ownText()
             genre = genres.joinToString(", ")
             status = when (document.selectFirst(".page__list > li:has(> div:contains(release type))")?.ownText()?.trim()) {
