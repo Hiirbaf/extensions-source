@@ -177,7 +177,7 @@ class BatCave : HttpSource() {
         val publisher = document.selectFirst(".page__list > li:has(> div:contains(Publisher))")?.ownText()
         val genres = document.selectFirst(".page__list > li:has(> div:contains(Genre))")?.ownText()?.split(",")?.map { it.trim() }?.toMutableList() ?: mutableListOf()
         if (!publisher.isNullOrBlank()) {
-    genres.add("Publisher: $publisher")
+            genres.add("Publisher: $publisher")
         }
 
         return SManga.create().apply {
