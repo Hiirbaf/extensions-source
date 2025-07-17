@@ -250,7 +250,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     private fun parseStatus(status: String) = when {
         status.contains("Publicándose") -> SManga.ONGOING
         status.contains("Pausado") -> SManga.ON_HIATUS
-        status.contains("Cancelado") -> SManga.SManga.CANCELLED
+        status.contains("Cancelado") -> SManga.CANCELLED
         status.contains("Finalizado") -> SManga.COMPLETED
         else -> SManga.UNKNOWN
     }
