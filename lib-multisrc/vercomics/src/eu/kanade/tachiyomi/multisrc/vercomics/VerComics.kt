@@ -105,7 +105,7 @@ abstract class VerComics(
         return Observable.just(
             listOf(
                 SChapter.create().apply {
-                    name = manga.title
+                    name = "Capítulo"
                     url = manga.url
                 },
             ),
