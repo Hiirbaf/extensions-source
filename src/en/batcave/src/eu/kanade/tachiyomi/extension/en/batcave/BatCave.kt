@@ -23,7 +23,7 @@ import org.jsoup.nodes.Document
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class BatCave : HttpSource() {
+class BatCave : HttpSource(), ComicSource {
 
     override val name = "BatCave"
     override val lang = "en"
