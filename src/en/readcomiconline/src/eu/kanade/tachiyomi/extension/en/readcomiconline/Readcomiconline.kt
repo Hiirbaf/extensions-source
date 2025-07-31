@@ -178,7 +178,11 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
         val infoElement = document.select("div.barContent").first()!!
 
         val manga = SManga.create()
-        manga.title = document.selectFirst("div.heading > h3")?.text().orEmpty()
+        manga.title = document.selectFirst("div.heading > h3")?.text()
+        ?.replace(Regex("\\s+"), " ") // Limpia espacios múltiples
+        ?.replace(Regex("[\\u0000-\\u001F]"), "") // Limpia control chars
+        ?.trim()
+        .orEmpty()
         manga.artist = infoElement.select("p:has(span:contains(Artist:)) > a").first()?.text()
         manga.author = infoElement.select("p:has(span:contains(Writer:)) > a").first()?.text()
         manga.genre = infoElement.select("p:has(span:contains(Genres:)) > *:gt(0)").text()
