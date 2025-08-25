@@ -1,0 +1,7 @@
+ext {
+    extName = 'NovelBin'
+    extClass = '.NovelBin'
+    extVersionCode = 1
+}
+ 
+apply from: "$rootDir/common.gradle" 
