@@ -121,8 +121,7 @@ class NOVA : ParsedHttpSource() {
         content?.select("center")?.remove()
         val html = content?.html()?.trim().orEmpty()
 
-        // 👇 aquí usamos `text` en lugar de meter el HTML en imageUrl
-        return listOf(Page(index = 0, url = document.location(), text = html))
+        return listOf(Page(0, document.location(), html))
     }
 
     override fun imageUrlParse(document: Document): String = ""
