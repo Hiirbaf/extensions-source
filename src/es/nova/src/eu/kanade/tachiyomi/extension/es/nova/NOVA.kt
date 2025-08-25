@@ -17,6 +17,7 @@ class NOVA : ParsedHttpSource() {
     override val supportsLatest = true
     val isNovelSource: Boolean = true
 
+    // --- Utilidad para validar URLs ---
     private fun safeUrl(element: Element): String {
         val href = element.attr("href")?.trim()
         require(!href.isNullOrBlank() && (href.startsWith("http") || href.startsWith("/"))) {
@@ -32,13 +33,16 @@ class NOVA : ParsedHttpSource() {
             .add("product-search", page.toString())
             .add("product-query", "")
             .build()
+
         return Request.Builder()
             .url("$baseUrl/wp-admin/admin-ajax.php?tags=1&sku=&limit=30&order=DESC&order_by=title")
             .post(body)
             .headers(headers)
             .build()
     }
+
     override fun popularMangaSelector(): String = "div.wf-cell"
+
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
         val a = element.selectFirst("h4.entry-title a")
@@ -51,6 +55,7 @@ class NOVA : ParsedHttpSource() {
 
         return manga
     }
+
     override fun popularMangaNextPageSelector(): String? = null
 
     override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
@@ -65,12 +70,14 @@ class NOVA : ParsedHttpSource() {
             .add("product-search", page.toString())
             .add("product-query", query)
             .build()
+
         return Request.Builder()
             .url("$baseUrl/wp-admin/admin-ajax.php?tags=1&sku=&limit=30&order=DESC&order_by=title")
             .post(body)
             .headers(headers)
             .build()
     }
+
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = null
@@ -96,6 +103,7 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTERS ---
     override fun chapterListSelector(): String = ".vc_row div.vc_column-inner > div.wpb_wrapper .wpb_tab a"
+
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
         val url = safeUrl(element)
@@ -113,7 +121,8 @@ class NOVA : ParsedHttpSource() {
         content?.select("center")?.remove()
         val html = content?.html()?.trim().orEmpty()
 
-        return listOf(Page(0, document.location(), html))
+        // 👇 aquí usamos `text` en lugar de meter el HTML en imageUrl
+        return listOf(Page(index = 0, url = document.location(), text = html))
     }
 
     override fun imageUrlParse(document: Document): String = ""
