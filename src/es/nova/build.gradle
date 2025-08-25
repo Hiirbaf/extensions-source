@@ -1,7 +1,8 @@
 ext {
-    extName = 'Nova'
-    extClass = '.Nova'
+    extName = 'NOVA'
+    pkgNameSuffix = 'es.nova'
+    extClass = '.NOVA'
     extVersionCode = 1
 }
- 
-apply from: "$rootDir/common.gradle" 
+
+apply from: "$rootDir/common.gradle"
