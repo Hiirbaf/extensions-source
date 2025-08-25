@@ -1,118 +1,162 @@
-package eu.kanade.tachiyomi.extension.en.novelbin
+package eu.kanade.tachiyomi.extension.es.nova
 
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-class NovelBin : ParsedHttpSource() {
-    override val name = "NovelBin"
-    override val baseUrl = "https://novelbin.com"
-    override val lang = "en"
-    override val supportsLatest = true
-    val isNovelSource: Boolean = true
+class NOVA : ParsedHttpSource() {
 
-    override fun popularMangaRequest(page: Int): Request =
-        Request.Builder().url("$baseUrl/sort/top-hot-novel").headers(headers).build()
-    override fun popularMangaSelector(): String = "div > h3.novel-title" // Select the h3 containing the novel title
+    override val name = "NOVA"
+    override val baseUrl = "https://novelasligeras.net"
+    override val lang = "es"
+    override val supportsLatest = true
+    private val searchQuery = "/wp-admin/admin-ajax.php?tags=1&sku=&limit=30&category_results=&order=DESC&category_limit=5&order_by=title&product_thumbnails=1&title=1&excerpt=1&content=&categories=1&attributes=1"
+
+    // --- POPULAR NOVELS ---
+    override fun popularMangaRequest(page: Int): Request {
+        return searchMangaRequest(page, "")
+    }
+    override fun popularMangaSelector(): String = "div.wf-cell"
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
-        val a = element.selectFirst("a")
-        manga.setUrlWithoutDomain(a?.attr("href") ?: "")
-        manga.title = a?.attr("title") ?: a?.text()?.trim() ?: ""
-        // Extract thumbnail robustly from the row
-        val row = element.parents().firstOrNull { it.hasClass("row") }
-        val coverImg = row?.selectFirst("img.cover") // matches both with and without 'lazy'
-        manga.thumbnail_url = coverImg?.absUrl("src").takeIf { !it.isNullOrEmpty() }
-            ?: coverImg?.absUrl("data-src")
-        // Optionally, extract author if needed
-        val author = row?.selectFirst(".author")?.text()?.trim()
-        if (!author.isNullOrEmpty()) manga.author = author
+        val img = element.selectFirst("img")
+        val a = element.selectFirst("h4.entry-title a")
+        manga.setUrlWithoutDomain(a?.attr("href")?.replace(baseUrl, "") ?: "")
+        manga.title = a?.text().orEmpty()
+        manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
         return manga
     }
     override fun popularMangaNextPageSelector(): String? = null
 
-    override fun latestUpdatesRequest(page: Int): Request =
-        Request.Builder().url("$baseUrl/sort/latest?page=$page").headers(headers).build()
+    // --- LATEST UPDATES ---
+    override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector(): String? = null
 
+    // --- SEARCH ---
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        // NovelBin uses GET for search with 'keyword' parameter
-        return Request.Builder()
-            .url("$baseUrl/search?keyword=$query&page=$page")
-            .headers(headers)
-            .build()
+        return if (page > 0) {
+            Request.Builder()
+                .url("$baseUrl/index.php/page/$page/?s=$query&post_type=product&title=1&excerpt=1&content=0&categories=1&attributes=1&tags=1&sku=0&orderby=popularity&ixwps=1")
+                .headers(headers)
+                .build()
+        } else {
+            val body = FormBody.Builder()
+                .add("action", "product_search")
+                .add("product-search", (page.takeIf { it > 0 } ?: 1).toString())
+                .add("product-query", query)
+                .build()
+
+            Request.Builder()
+                .url(baseUrl + searchQuery)
+                .post(body)
+                .headers(headers)
+                .build()
+        }
     }
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = null
 
-    override fun mangaDetailsParse(document: org.jsoup.nodes.Document): SManga {
+    // --- MANGA DETAILS ---
+    override fun mangaDetailsParse(document: Document): SManga {
         val manga = SManga.create()
-        // Title
-        manga.title = document.selectFirst("h1, h2")?.text()?.trim() ?: document.title()
-        // Author
-        manga.author = document.select("b:contains(Author:)").firstOrNull()?.parent()?.ownText()?.trim()
-        // Genre
-        manga.genre = document.select("b:contains(Genre:)").firstOrNull()?.parent()?.ownText()?.trim()?.replace(",", ", ")
-        // Status
-        val statusText = document.select("b:contains(Status:)").firstOrNull()?.parent()?.ownText()?.trim()?.lowercase()
-        manga.status = when {
-            statusText?.contains("ongoing") == true -> SManga.ONGOING
-            statusText?.contains("completed") == true -> SManga.COMPLETED
+        val coverImg = document.selectFirst(".woocommerce-product-gallery img")
+
+        manga.title = document.selectFirst("h1")?.text().orEmpty()
+        manga.thumbnail_url = coverImg?.attr("src") ?: coverImg?.attr("data-cfsrc")
+        manga.author = document.select(".woocommerce-product-attributes-item--attribute_pa_escritor td").text()
+        manga.artist = document.select(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").text()
+        manga.status = when (document.select(".woocommerce-product-attributes-item--attribute_pa_estado td").text().lowercase()) {
+            "en curso", "ongoing" -> SManga.ONGOING
+            "completado", "completed" -> SManga.COMPLETED
             else -> SManga.UNKNOWN
         }
-        // Description
-        manga.description = document.select("#tab-description, .description, p").firstOrNull()?.text()?.trim()
-        // Thumbnail: robust extraction from <img class="cover lazy">, check both src and data-src
-        manga.thumbnail_url = document.selectFirst("img.cover.lazy")?.let { img ->
-            img.absUrl("src").ifEmpty { img.absUrl("data-src") }
-        } ?: document.selectFirst(".book img")?.let { img ->
-            img.absUrl("src").ifEmpty { img.absUrl("data-src") }
-        } ?: document.selectFirst("meta[itemprop=image]")?.attr("content")
+        manga.description = document.select(".woocommerce-product-details__short-description").text()
+
         return manga
     }
 
-    override fun chapterListRequest(manga: SManga): Request {
-        // Extract novelId from the manga URL
-        val novelId = manga.url.substringAfterLast("/b/")
-        val ajaxUrl = "$baseUrl/ajax/chapter-archive?novelId=$novelId"
-        return Request.Builder().url(ajaxUrl).headers(headers).build()
+    // --- CHAPTERS ---
+    override fun chapterListSelector(): String = ".vc_row div.vc_column-inner > div.wpb_wrapper"
+    override fun chapterFromElement(element: Element): SChapter {
+        val volume = element.selectFirst(".dt-fancy-title")?.text().orEmpty()
+        val a = element.select(".wpb_tab a")
+
+        val chapters = mutableListOf<SChapter>()
+        a.forEach { link ->
+            val chapterPartName = link.text()
+            val chapterUrl = link.attr("href").replace(baseUrl, "")
+
+            val regex = Regex("(Parte \\d+) . (.+?): (.+)")
+            val match = regex.find(chapterPartName)
+
+            val part = match?.groupValues?.getOrNull(1)
+            val chapter = match?.groupValues?.getOrNull(2)
+            val name = match?.groupValues?.getOrNull(3)
+
+            val chapterName = if (part != null && chapter != null) {
+                "$volume - $chapter - $part: $name"
+            } else {
+                "$volume - $chapterPartName"
+            }
+
+            val ch = SChapter.create()
+            ch.name = chapterName
+            ch.setUrlWithoutDomain(chapterUrl)
+            chapters.add(ch)
+        }
+
+        // Devuelvo el primero, porque ParsedHttpSource espera 1 solo acá
+        return chapters.firstOrNull() ?: SChapter.create()
     }
     override fun chapterListParse(response: Response): List<SChapter> {
         val body = response.body?.string().orEmpty()
         val doc = Jsoup.parse(body)
-        return doc.select("ul.list-chapter a").map { chapterFromElement(it) }
-    }
-    override fun chapterListSelector(): String = "ul.list-chapter a"
-    override fun chapterFromElement(element: Element): SChapter {
-        val chapter = SChapter.create()
-        chapter.setUrlWithoutDomain(element.attr("href"))
-        chapter.name = element.text().trim()
-        return chapter
+        val result = mutableListOf<SChapter>()
+        doc.select(chapterListSelector()).forEach { wrapper ->
+            val volume = wrapper.selectFirst(".dt-fancy-title")?.text().orEmpty()
+            if (volume.startsWith("Volumen")) {
+                wrapper.select(".wpb_tab a").forEach { link ->
+                    val chapter = chapterFromElement(wrapper) // reutilizo la lógica
+                    chapter.url = link.attr("href").replace(baseUrl, "")
+                    result.add(chapter)
+                }
+            }
+        }
+        return result
     }
 
+    // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        // Extract the main chapter content
-        val contentElement = document.selectFirst("#chr-content")
-        if (contentElement != null) {
-            // Remove ad/script divs
-            contentElement.select("div[id^=pf-], script").remove()
-            // Preserve <p> and <br> tags by returning HTML as-is
-            val content = contentElement.html().trim()
-            return listOf(Page(0, document.location(), content))
+        var contentElement: Element? = null
+
+        if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
+            contentElement = document.selectFirst("#content")
+        } else {
+            contentElement = document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
         }
-        // Fallback: return the whole body HTML if #chr-content is missing
-        val fallback = document.body().html().trim()
-        return listOf(Page(0, document.location(), fallback))
+
+        // Remover anuncios
+        contentElement?.select("center")?.remove()
+        contentElement?.select("*")?.forEach { el ->
+            if (el.attr("style").contains("text-align:.center")) {
+                el.replaceWith(Element("center").append(el.html()))
+            }
+        }
+
+        val html = contentElement?.html()?.trim().orEmpty()
+        return listOf(Page(0, document.location(), html))
     }
+
     override fun imageUrlParse(document: Document): String = ""
 }
