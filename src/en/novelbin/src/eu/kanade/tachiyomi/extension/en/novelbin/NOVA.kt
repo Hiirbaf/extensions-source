@@ -22,7 +22,7 @@ class NOVA : ParsedHttpSource() {
 
     // --- POPULAR NOVELS ---
     override fun popularMangaRequest(page: Int): Request {
-        return searchMangaRequest(page, "")
+        return searchMangaRequest(page, "", FilterList())
     }
     override fun popularMangaSelector(): String = "div.wf-cell"
     override fun popularMangaFromElement(element: Element): SManga {
