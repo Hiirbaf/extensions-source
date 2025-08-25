@@ -17,6 +17,14 @@ class NOVA : ParsedHttpSource() {
     override val supportsLatest = true
     val isNovelSource: Boolean = true
 
+    private fun safeUrl(element: Element): String {
+        val href = element.attr("href")?.trim()
+        require(!href.isNullOrBlank() && (href.startsWith("http") || href.startsWith("/"))) {
+            "Invalid href: ${element.outerHtml()}"
+        }
+        return href
+    }
+
     // --- POPULAR / LATEST ---
     override fun popularMangaRequest(page: Int): Request {
         val body = FormBody.Builder()
@@ -35,9 +43,12 @@ class NOVA : ParsedHttpSource() {
         val manga = SManga.create()
         val a = element.selectFirst("h4.entry-title a")
         val img = element.selectFirst("img")
-        manga.setUrlWithoutDomain(a?.attr("href")?.replace(baseUrl, "") ?: "")
+        val url = a?.let { safeUrl(it) } ?: "/"
+
+        manga.setUrlWithoutDomain(url.replace(baseUrl, ""))
         manga.title = a?.text().orEmpty()
         manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
+
         return manga
     }
     override fun popularMangaNextPageSelector(): String? = null
@@ -87,7 +98,7 @@ class NOVA : ParsedHttpSource() {
     override fun chapterListSelector(): String = ".vc_row div.vc_column-inner > div.wpb_wrapper .wpb_tab a"
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
-        val url = element.attr("href")
+        val url = safeUrl(element)
         chapter.setUrlWithoutDomain(url.replace(baseUrl, ""))
         chapter.name = element.text()
         return chapter
