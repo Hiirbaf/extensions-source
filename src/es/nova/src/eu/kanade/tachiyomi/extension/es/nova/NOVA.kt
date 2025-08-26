@@ -7,8 +7,6 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.FormBody
 import okhttp3.Request
-import okhttp3.Response
-import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -97,7 +95,7 @@ class NOVA : ParsedHttpSource() {
         chapter.name = element.text()
         return chapter
     }
-    
+
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
         var contentElement: Element? = null
