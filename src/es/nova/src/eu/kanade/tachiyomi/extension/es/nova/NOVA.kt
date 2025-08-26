@@ -88,55 +88,16 @@ class NOVA : ParsedHttpSource() {
     }
 
     // --- CHAPTERS ---
-    override fun chapterListSelector(): String = ".vc_row div.vc_column-inner > div.wpb_wrapper"
+    override fun chapterListSelector(): String = ".vc_row div.vc_column-inner > div.wpb_wrapper .wpb_tab a"
+
     override fun chapterFromElement(element: Element): SChapter {
-        val volume = element.selectFirst(".dt-fancy-title")?.text().orEmpty()
-        val a = element.select(".wpb_tab a")
-
-        val chapters = mutableListOf<SChapter>()
-        a.forEach { link ->
-            val chapterPartName = link.text()
-            val chapterUrl = link.attr("href").replace(baseUrl, "")
-
-            val regex = Regex("(Parte \\d+) . (.+?): (.+)")
-            val match = regex.find(chapterPartName)
-
-            val part = match?.groupValues?.getOrNull(1)
-            val chapter = match?.groupValues?.getOrNull(2)
-            val name = match?.groupValues?.getOrNull(3)
-
-            val chapterName = if (part != null && chapter != null) {
-                "$volume - $chapter - $part: $name"
-            } else {
-                "$volume - $chapterPartName"
-            }
-
-            val ch = SChapter.create()
-            ch.name = chapterName
-            ch.setUrlWithoutDomain(chapterUrl)
-            chapters.add(ch)
-        }
-
-        // Devuelvo el primero, porque ParsedHttpSource espera 1 solo acá
-        return chapters.firstOrNull() ?: SChapter.create()
+        val chapter = SChapter.create()
+        val url = safeUrl(element)
+        chapter.setUrlWithoutDomain(url.replace(baseUrl, ""))
+        chapter.name = element.text()
+        return chapter
     }
-    override fun chapterListParse(response: Response): List<SChapter> {
-        val body = response.body?.string().orEmpty()
-        val doc = Jsoup.parse(body)
-        val result = mutableListOf<SChapter>()
-        doc.select(chapterListSelector()).forEach { wrapper ->
-            val volume = wrapper.selectFirst(".dt-fancy-title")?.text().orEmpty()
-            if (volume.startsWith("Volumen")) {
-                wrapper.select(".wpb_tab a").forEach { link ->
-                    val chapter = chapterFromElement(wrapper) // reutilizo la lógica
-                    chapter.url = link.attr("href").replace(baseUrl, "")
-                    result.add(chapter)
-                }
-            }
-        }
-        return result
-    }
-
+    
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
         var contentElement: Element? = null
