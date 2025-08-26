@@ -17,39 +17,52 @@ class NOVA : ParsedHttpSource() {
     override val supportsLatest = true
     val isNovelSource: Boolean = true
 
-    override fun popularMangaRequest(page: Int): Request =
-        Request.Builder().url("$baseUrl/sort/most-popular?page=$page").headers(headers).build()
-    override fun popularMangaSelector(): String = ".ul-list1 .li"
+    // --- POPULAR NOVELS ---
+    override fun popularMangaRequest(page: Int): Request {
+        return searchMangaRequest(page, "", FilterList())
+    }
+    override fun popularMangaSelector(): String = "div.wf-cell"
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
-        val a = element.selectFirst(".txt h3.tit a")
-        manga.setUrlWithoutDomain(a?.attr("href") ?: "")
-        manga.title = a?.text() ?: ""
-        manga.thumbnail_url = element.selectFirst(".pic img")?.absUrl("src")
+        val img = element.selectFirst("img")
+        val a = element.selectFirst("h4.entry-title a")
+        manga.setUrlWithoutDomain(a?.attr("href")?.replace(baseUrl, "") ?: "")
+        manga.title = a?.text().orEmpty()
+        manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
         return manga
     }
     override fun popularMangaNextPageSelector(): String? = null
 
-    override fun latestUpdatesRequest(page: Int): Request =
-        Request.Builder().url("$baseUrl/sort/latest-novel?page=$page").headers(headers).build()
+    // --- LATEST UPDATES ---
+    override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector(): String? = null
 
+    // --- SEARCH ---
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val formBody = FormBody.Builder()
-            .add("searchkey", query)
-            .build()
-        return Request.Builder()
-            .url("$baseUrl/search?page=$page")
-            .headers(headers)
-            .post(formBody)
-            .build()
+        return if (page > 0) {
+            Request.Builder()
+                .url("$baseUrl/index.php/page/$page/?s=$query&post_type=product&title=1&excerpt=1&content=0&categories=1&attributes=1&tags=1&sku=0&orderby=popularity&ixwps=1")
+                .headers(headers)
+                .build()
+        } else {
+            val body = FormBody.Builder()
+                .add("action", "product_search")
+                .add("product-search", (page.takeIf { it > 0 } ?: 1).toString())
+                .add("product-query", query)
+                .build()
+
+            Request.Builder()
+                .url(baseUrl + searchQuery)
+                .post(body)
+                .headers(headers)
+                .build()
+        }
     }
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = null
-
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = SManga.create()
         val ogTitle = document.selectFirst("meta[property=og:title]")?.attr("content")
