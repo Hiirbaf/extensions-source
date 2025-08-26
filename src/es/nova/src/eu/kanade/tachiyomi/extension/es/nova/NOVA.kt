@@ -41,24 +41,16 @@ class NOVA : ParsedHttpSource() {
 
     // --- SEARCH ---
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        return if (page > 0) {
-            Request.Builder()
-                .url("$baseUrl/index.php/page/$page/?s=$query&post_type=product&title=1&excerpt=1&content=0&categories=1&attributes=1&tags=1&sku=0&orderby=popularity&ixwps=1")
-                .headers(headers)
-                .build()
-        } else {
-            val body = FormBody.Builder()
-                .add("action", "product_search")
-                .add("product-search", (page.takeIf { it > 0 } ?: 1).toString())
-                .add("product-query", query)
-                .build()
-
-            Request.Builder()
-                .url(baseUrl + searchQuery)
-                .post(body)
-                .headers(headers)
-                .build()
-        }
+        val body = FormBody.Builder()
+            .add("action", "product_search")
+            .add("product-search", page.toString())
+            .add("product-query", query)
+            .build()
+        return Request.Builder()
+            .url("$baseUrl/wp-admin/admin-ajax.php?tags=1&sku=&limit=30&order=DESC&order_by=title")
+            .post(body)
+            .headers(headers)
+            .build()
     }
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
