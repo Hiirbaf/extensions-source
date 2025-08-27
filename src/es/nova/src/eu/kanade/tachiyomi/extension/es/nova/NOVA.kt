@@ -107,11 +107,6 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        // Buscar un título dentro del capítulo (si existe en <h2>)
-        val chapterName = document.select("h2")
-            .joinToString(" ") { it.text() }
-            .ifBlank { "" }
-
         // Detectar si se debe usar #content o el wrapper
         val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
             document.selectFirst("#content")
@@ -120,7 +115,6 @@ class NOVA : ParsedHttpSource() {
         }
 
         // --- Limpieza de anuncios y basura ---
-        // Quitar anuncios en <center>
         contentElement?.select("center")?.remove()
 
         // Normalizar centrados
@@ -148,13 +142,8 @@ class NOVA : ParsedHttpSource() {
             }
         }
 
-        // --- Construir el HTML final ---
-        val html = buildString {
-            if (chapterName.isNotBlank()) {
-                append("<h2>$chapterName</h2>")
-            }
-            append(contentElement?.html()?.trim().orEmpty())
-        }
+        // --- Construir el HTML final (solo contenido limpio) ---
+        val html = contentElement?.html()?.trim().orEmpty()
 
         return listOf(Page(0, document.location(), html))
     }
