@@ -107,33 +107,33 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-    // 1. Sacar el nombre del capítulo (equivalente a los <h2> en el JS)
-    val chapterName = document.select("h2")
-        .joinToString(" ") { it.text() }
-        .ifBlank { "Capítulo sin título" }
+        // 1. Sacar el nombre del capítulo (equivalente a los <h2> en el JS)
+        val chapterName = document.select("h2")
+            .joinToString(" ") { it.text() }
+            .ifBlank { "Capítulo sin título" }
 
-    // 2. Obtener el texto del capítulo, según la condición
-    val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
-        document.selectFirst("#content")
-    } else {
-        document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
-    }
-
-    // 3. Limpiar anuncios
-    contentElement?.select("center")?.remove()
-    contentElement?.select("*")?.forEach { el ->
-        if (el.attr("style").contains("text-align:.center")) {
-            el.replaceWith(Element("center").append(el.html()))
+        // 2. Obtener el texto del capítulo, según la condición
+        val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
+            document.selectFirst("#content")
+        } else {
+            document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
         }
-    }
 
-    // 4. Construir el "objeto" de salida → en Tachiyomi se simula con Page
-    val html = """
-        <h2>$chapterName</h2>
-        ${contentElement?.html()?.trim().orEmpty()}
-    """.trimIndent()
+        // 3. Limpiar anuncios
+        contentElement?.select("center")?.remove()
+        contentElement?.select("*")?.forEach { el ->
+            if (el.attr("style").contains("text-align:.center")) {
+                el.replaceWith(Element("center").append(el.html()))
+            }
+        }
 
-    return listOf(Page(0, document.location(), html))
+        // 4. Construir el "objeto" de salida → en Tachiyomi se simula con Page
+        val html = """
+            <h2>$chapterName</h2>
+            ${contentElement?.html()?.trim().orEmpty()}
+        """.trimIndent()
+
+        return listOf(Page(0, document.location(), html))
     }
 
     override fun imageUrlParse(document: Document): String = ""
