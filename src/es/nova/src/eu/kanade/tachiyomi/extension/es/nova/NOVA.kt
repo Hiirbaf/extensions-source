@@ -107,34 +107,56 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        // 1. Sacar el nombre del capítulo (equivalente a los <h2> en el JS)
-        val chapterName = document.select("h2")
-            .joinToString(" ") { it.text() }
-            .ifBlank { "Capítulo sin título" }
+    // Buscar un título dentro del capítulo (si existe en <h2>)
+    val chapterName = document.select("h2")
+        .joinToString(" ") { it.text() }
+        .ifBlank { "" }
 
-        // 2. Obtener el texto del capítulo, según la condición
-        val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
-            document.selectFirst("#content")
-        } else {
-            document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
-        }
-
-        // 3. Limpiar anuncios
-        contentElement?.select("center")?.remove()
-        contentElement?.select("*")?.forEach { el ->
-            if (el.attr("style").contains("text-align:.center")) {
-                el.replaceWith(Element("center").append(el.html()))
-            }
-        }
-
-        // 4. Construir el "objeto" de salida → en Tachiyomi se simula con Page
-        val html = """
-            <h2>$chapterName</h2>
-            ${contentElement?.html()?.trim().orEmpty()}
-        """.trimIndent()
-
-        return listOf(Page(0, document.location(), html))
+    // Detectar si se debe usar #content o el wrapper
+    val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
+        document.selectFirst("#content")
+    } else {
+        document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
     }
 
+    // --- Limpieza de anuncios y basura ---
+    // Quitar anuncios en <center>
+    contentElement?.select("center")?.remove()
+
+    // Normalizar centrados
+    contentElement?.select("*")?.forEach { el ->
+        if (el.attr("style").contains("text-align:.center")) {
+            el.removeAttr("style")
+            el.tagName("div").attr("align", "center")
+        }
+    }
+
+    // Quitar imágenes duplicadas en <noscript>
+    contentElement?.select("noscript")?.remove()
+
+    // Quitar párrafos vacíos o con solo &nbsp;
+    contentElement?.select("p")?.forEach { el ->
+        if (el.text().isBlank()) {
+            el.remove()
+        }
+    }
+
+    // Quitar <br> innecesarios o consecutivos
+    contentElement?.select("br")?.forEach { br ->
+        if (br.nextElementSibling() == null || br.nextElementSibling()?.tagName() == "br") {
+            br.remove()
+        }
+    }
+
+    // --- Construir el HTML final ---
+    val html = buildString {
+        if (chapterName.isNotBlank()) {
+            append("<h2>$chapterName</h2>")
+        }
+        append(contentElement?.html()?.trim().orEmpty())
+    }
+
+    return listOf(Page(0, document.location(), html))
+    }
     override fun imageUrlParse(document: Document): String = ""
 }
