@@ -130,6 +130,12 @@ class NOVA : ParsedHttpSource() {
             // Quitar el título de la novela dentro del contenido
             contentElement?.select("h1")?.firstOrNull()?.remove()
             contentElement?.select("center")?.remove()
+            // Quitar <p> que solo contienen una imagen
+            contentElement.select("p:has(img)").forEach { p ->
+                if (p.childrenSize() == 1 && p.child(0).tagName() == "img") {
+                    p.replaceWith(p.child(0)) // reemplaza el <p> por el <img>
+                    }
+                }
             // Quitar párrafos vacíos o con solo &nbsp;
             contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
 
