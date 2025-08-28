@@ -120,11 +120,15 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        // Extract the main chapter content
-        val contentElement = document.selectFirst("div.txt #article")
-        if (contentElement != null) {
-            // Remove ad/script divs
-            contentElement.select("script, iframe, .ads, .advertisement, style").remove()
+        // Detectar si se debe usar #content o el wrapper
+        val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
+            document.selectFirst("#content")
+        } else {
+            document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
+        }
+
+        // Quitar el título de la novela dentro del contenido
+        contentElement?.select("h1")?.firstOrNull()?.remove()
             // Preserve <p> and <br> tags by returning HTML as-is
             val content = contentElement.html().trim()
             return listOf(Page(0, document.location(), content))
