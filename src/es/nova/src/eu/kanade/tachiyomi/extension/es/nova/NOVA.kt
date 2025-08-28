@@ -120,27 +120,38 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
+        val pages = mutableListOf<Page>()
+
         val article = document.selectFirst("div.txt #article") ?: return emptyList()
+
+        // Clonar el contenido para manipularlo sin romper el original
         val content = article.clone()
 
-        // Mover imágenes de <noscript> a visibles
+        // 1. Mover imágenes que están dentro de <noscript>
         content.select("noscript img").forEach { img ->
-            img.parent().before(img)
+            img.parent()?.before(img)
         }
         content.select("noscript").remove()
 
-        // Limpiar basura
-        content.select("script, iframe, .ads, .advertisement, style, ins").remove()
+        // 2. Quitar elementos molestos
+        content.select("script, iframe, .ads, .advertisement, style").remove()
 
-        // Construir HTML final
-        val htmlText = """
-            <html>
-                <head><meta charset="UTF-8"></head>
-                <body>${content.html()}</body>
-            </html>
-        """.trimIndent()
+        // 3. Procesar todas las imágenes como páginas
+        content.select("img").forEach { img ->
+            val imgUrl = img.absUrl("src")
+            if (imgUrl.isNotBlank()) {
+                pages.add(Page(pages.size, "", imgUrl))
+            }
+        }
 
-        return listOf(Page(0, "", htmlText))
+        // 4. Agregar el bloque de texto como novela en formato HTML embebido
+        val htmlText = content.html()
+        if (htmlText.isNotBlank()) {
+            val dataUri = "data:text/html;charset=utf-8," + Uri.encode(htmlText)
+            pages.add(Page(pages.size, "", dataUri))
+        }
+
+        return pages
     }
 
     override fun imageUrlParse(document: Document): String = ""
