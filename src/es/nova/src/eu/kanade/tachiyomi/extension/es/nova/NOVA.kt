@@ -121,41 +121,40 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        val pages = mutableListOf<Page>()
-
         val article = document.selectFirst("div.txt #article") ?: return emptyList()
-
-        // Clonamos el contenido para manipularlo sin romper el original
         val contentElement = article.clone()
 
-        // 🔹 1. Mover imágenes que están dentro de <noscript>
+        // Pasar imágenes de <noscript> a visibles
         contentElement.select("noscript").forEach { noscript ->
             val img = noscript.selectFirst("img")
             if (img != null) {
-                // Insertar la imagen justo antes del <noscript>
                 noscript.before(img)
             }
             noscript.remove()
         }
 
-        // 🔹 2. Quitar elementos molestos (ads, scripts, iframes, etc.)
+        // Quitar basura
         contentElement.select("script, iframe, .ads, .advertisement, style").remove()
 
-        // 🔹 3. Procesar todas las imágenes
-        contentElement.select("img").forEach { img ->
-            val imgUrl = img.absUrl("src")
-            if (imgUrl.isNotBlank()) {
-                pages.add(Page(pages.size, "", imgUrl))
-            }
-        }
+        // HTML final
+        val htmlText = """
+            <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: sans-serif; padding: 10px; line-height: 1.5; }
+                        img { max-width: 100%; height: auto; display: block; margin: 10px 0; }
+                    </style>
+                </head>
+                <body>
+                    ${contentElement.html()}
+                </body>
+            </html>
+        """.trimIndent()
 
-        // 🔹 4. Finalmente, meter el bloque de texto como HTML (si quieres que Tachiyomi lo muestre)
-        val htmlText = contentElement.html()
-        if (htmlText.isNotBlank()) {
-            pages.add(Page(pages.size, "", "data:text/html;charset=utf-8," + Uri.encode(htmlText)))
-        }
-
-        return pages
+        return listOf(
+            Page(0, "", "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8"))
+        )
     }
     override fun imageUrlParse(document: Document): String = ""
 }
