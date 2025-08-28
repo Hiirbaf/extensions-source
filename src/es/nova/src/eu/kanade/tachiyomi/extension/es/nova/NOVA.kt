@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.es.nova
 
+import android.net.Uri
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
