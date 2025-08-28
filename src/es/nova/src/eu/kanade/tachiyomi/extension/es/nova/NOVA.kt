@@ -101,7 +101,29 @@ class NOVA : ParsedHttpSource() {
         val chapter = SChapter.create()
         val url = safeUrl(element)
         chapter.setUrlWithoutDomain(url.replace(baseUrl, ""))
-        chapter.name = element.text()
+
+        val chapterPartName = element.text()
+
+        // --- Obtener volumen automáticamente ---
+        // Busca el volumen más cercano como "Volumen X"
+        val volumeElement = element.parents().select(".dt-fancy-title").firstOrNull()
+        val volume = volumeElement?.text()?.takeIf { it.startsWith("Volumen") } ?: ""
+
+        // --- Parseo del capítulo tipo JS ---
+        val regex = Regex("""(Parte \d+) . (.+?): (.+)""")
+        val matchResult = regex.find(chapterPartName)
+
+        val chapterName = if (matchResult != null && matchResult.groupValues.size >= 4) {
+            val part = matchResult.groupValues[1]
+            val chapterNum = matchResult.groupValues[2]
+            val name = matchResult.groupValues[3]
+            if (volume.isNotBlank()) "$volume - $chapterNum - $part: $name"
+            else "$chapterNum - $part: $name"
+        } else {
+            if (volume.isNotBlank()) "$volume - $chapterPartName" else chapterPartName
+        }
+
+        chapter.name = chapterName
         return chapter
     }
 
