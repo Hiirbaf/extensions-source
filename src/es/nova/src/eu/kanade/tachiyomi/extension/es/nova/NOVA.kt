@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.extension.es.nova
 
-import android.net.Uri
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
@@ -121,38 +120,21 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        val pages = mutableListOf<Page>()
-
         val article = document.selectFirst("div.txt #article") ?: return emptyList()
 
-        // Clonar el contenido para manipularlo sin romper el original
-        val content = article.clone()
+        // Extraer el HTML limpio
+        val contentElement = article.clone()
 
-        // 1. Mover imágenes que están dentro de <noscript>
-        content.select("noscript img").forEach { img ->
-            img.parent()?.before(img)
-        }
-        content.select("noscript").remove()
+        // Quitar basura
+        contentElement.select("script, iframe, .ads, .advertisement, style").remove()
 
-        // 2. Quitar elementos molestos
-        content.select("script, iframe, .ads, .advertisement, style").remove()
+        // Extraer texto con saltos de línea
+        val text = contentElement.text().trim()
 
-        // 3. Procesar todas las imágenes como páginas
-        content.select("img").forEach { img ->
-            val imgUrl = img.absUrl("src")
-            if (imgUrl.isNotBlank()) {
-                pages.add(Page(pages.size, "", imgUrl))
-            }
-        }
+        // Empaquetar en data URI (lector novela necesita solo 1 Page)
+        val dataUri = "data:text/html;charset=utf-8," + java.net.URLEncoder.encode(text, "UTF-8")
 
-        // 4. Agregar el bloque de texto como novela en formato HTML embebido
-        val htmlText = content.html()
-        if (htmlText.isNotBlank()) {
-            val dataUri = "data:text/html;charset=utf-8," + Uri.encode(htmlText)
-            pages.add(Page(pages.size, "", dataUri))
-        }
-
-        return pages
+        return listOf(Page(0, "", dataUri))
     }
 
     override fun imageUrlParse(document: Document): String = ""
