@@ -102,7 +102,7 @@ class NOVA : ParsedHttpSource() {
             ?.text() ?: ""
 
         // --- Parseo del capítulo tipo JS ---
-        val regex = Regex("""(Parte \d+)[\s\-:.\—]+(.+?):\s*(.+)""")
+        val regex = Regex("""(Parte \d+)[\s\-:.\–]+(.+?):\s*(.+)""")
         val matchResult = regex.find(chapterPartName)
 
         val chapterName = if (matchResult != null && matchResult.groupValues.size >= 4) {
@@ -129,7 +129,8 @@ class NOVA : ParsedHttpSource() {
 
         if (contentElement != null) {
             // Quitar el título de la novela dentro del contenido
-            contentElement.select("h1")?.firstOrNull()?.remove()
+            contentElement?.select("h1")?.firstOrNull()?.remove()
+            contentElement?.select("center")?.remove()
 
             // Preservar <p> y <br> tags devolviendo el HTML tal cual
             val content = contentElement.html().trim()
