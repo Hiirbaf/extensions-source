@@ -117,8 +117,7 @@ class NOVA : ParsedHttpSource() {
             val part = matchResult.groupValues[1]
             val chapterNum = matchResult.groupValues[2]
             val name = matchResult.groupValues[3]
-            if (volume.isNotBlank()) "$volume - $chapterNum - $part: $name"
-                else "$chapterNum - $part: $name"
+            if (volume.isNotBlank()) "$volume - $chapterNum - $part: $name" else "$chapterNum - $part: $name"
         } else {
             if (volume.isNotBlank()) "$volume - $chapterPartName" else chapterPartName
         }
