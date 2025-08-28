@@ -161,3 +161,4 @@ class NOVA : ParsedHttpSource() {
     }
 
 override fun imageUrlParse(document: Document): String? = null
+}
