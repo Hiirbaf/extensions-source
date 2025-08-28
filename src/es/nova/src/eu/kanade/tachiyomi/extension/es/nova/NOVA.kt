@@ -120,46 +120,42 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        // Detectar si se debe usar #content o el wrapper
-        val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
-            document.selectFirst("#content")
-        } else {
-            document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
+        val pages = mutableListOf<Page>()
+
+        val article = document.selectFirst("div.txt #article") ?: return emptyList()
+
+    // Clonamos el contenido para manipularlo sin romper el original
+        val contentElement = article.clone()
+
+    // 🔹 1. Mover imágenes que están dentro de <noscript>
+        contentElement.select("noscript").forEach { noscript ->
+            val img = noscript.selectFirst("img")
+            if (img != null) {
+            // Insertar la imagen justo antes del <noscript>
+                noscript.before(img)
+            }
+            noscript.remove()
         }
 
-        // Quitar el título de la novela dentro del contenido
-        contentElement?.select("h1")?.firstOrNull()?.remove()
+    // 🔹 2. Quitar elementos molestos (ads, scripts, iframes, etc.)
+        contentElement.select("script, iframe, .ads, .advertisement, style").remove()
 
-        // --- Limpieza de anuncios y basura ---
-        contentElement?.select("center")?.remove()
-
-        // Normalizar centrados
-        contentElement?.select("*")?.forEach { el ->
-            if (el.attr("style").contains("text-align:.center")) {
-                el.removeAttr("style")
-                el.tagName("div").attr("align", "center")
+    // 🔹 3. Procesar todas las imágenes
+        contentElement.select("img").forEach { img ->
+            val imgUrl = img.absUrl("src")
+            if (imgUrl.isNotBlank()) {
+                pages.add(Page(pages.size, "", imgUrl))
             }
         }
 
-        // Quitar imágenes duplicadas en <noscript>
-        contentElement?.select("noscript")?.remove()
-
-        // Quitar párrafos vacíos o con solo &nbsp;
-        contentElement?.select("p")?.forEach { el ->
-            if (el.text().isBlank()) {
-                el.remove()
-            }
+    // 🔹 4. Finalmente, meter el bloque de texto como HTML (si quieres que Tachiyomi lo muestre)
+        val htmlText = contentElement.html()
+        if (htmlText.isNotBlank()) {
+            pages.add(Page(pages.size, "", "data:text/html;charset=utf-8," + Uri.encode(htmlText)))
         }
 
-        // Quitar <br> innecesarios o consecutivos
-        contentElement?.select("br")?.forEach { br ->
-            if (br.nextElementSibling() == null || br.nextElementSibling()?.tagName() == "br") {
-                br.remove()
-            }
-        }
-
-        // --- Construir el HTML final (solo contenido limpio) ---
-        val html = contentElement?.html()?.trim().orEmpty()
+        return pages
+    }
 
         return listOf(Page(0, document.location(), html))
     }
