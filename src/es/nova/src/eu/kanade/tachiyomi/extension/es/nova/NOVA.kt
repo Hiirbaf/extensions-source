@@ -131,8 +131,8 @@ class NOVA : ParsedHttpSource() {
             contentElement?.select("h1")?.firstOrNull()?.remove()
             contentElement?.select("center")?.remove()
             // Quitar <p> que solo contienen una imagen
-            contentElement.select("p:has(img)").forEach { p ->
-                if (p.childrenSize() == 1 && p.child(0).tagName() == "img") {
+            contentElement.select("p").forEach { p ->
+                if (p.childrenSize() == 1 && p.child(0).tagName() == "img" && p.ownText().isBlank()) {
                     p.unwrap()
                 }
             }
