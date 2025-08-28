@@ -124,7 +124,7 @@ class NOVA : ParsedHttpSource() {
         val article = document.selectFirst("div.txt #article") ?: return emptyList()
         val contentElement = article.clone()
 
-        // Mover imágenes que estén en <noscript>
+        // Pasar imágenes de <noscript> a visibles
         contentElement.select("noscript").forEach { noscript ->
             val img = noscript.selectFirst("img")
             if (img != null) {
@@ -136,10 +136,28 @@ class NOVA : ParsedHttpSource() {
         // Limpiar basura
         contentElement.select("script, iframe, .ads, .advertisement, style").remove()
 
-        val htmlText = contentElement.html()
+        val htmlText = """
+            <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: sans-serif; padding: 10px; line-height: 1.5; }
+                        img { max-width: 100%; height: auto; display: block; margin: 10px 0; }
+                    </style>
+                </head>
+                <body>
+                    ${contentElement.html()}
+                </body>
+            </html>
+        """.trimIndent()
+
         return listOf(
-            Page(0, "", "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8")),
+            Page(
+                0,
+                "",
+                "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8"),
+            ),
         )
     }
-    override fun imageUrlParse(document: Document): String = ""
-}
+
+override fun imageUrlParse(document: Document): String? = null
