@@ -156,8 +156,5 @@ class NOVA : ParsedHttpSource() {
 
         return pages
     }
-
-        return listOf(Page(0, document.location(), html))
-    }
     override fun imageUrlParse(document: Document): String = ""
 }
