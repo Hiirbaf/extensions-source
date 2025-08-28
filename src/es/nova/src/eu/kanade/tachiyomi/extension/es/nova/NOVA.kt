@@ -124,23 +124,23 @@ class NOVA : ParsedHttpSource() {
 
         val article = document.selectFirst("div.txt #article") ?: return emptyList()
 
-    // Clonamos el contenido para manipularlo sin romper el original
+        // Clonamos el contenido para manipularlo sin romper el original
         val contentElement = article.clone()
 
-    // 🔹 1. Mover imágenes que están dentro de <noscript>
+        // 🔹 1. Mover imágenes que están dentro de <noscript>
         contentElement.select("noscript").forEach { noscript ->
             val img = noscript.selectFirst("img")
             if (img != null) {
-            // Insertar la imagen justo antes del <noscript>
+                // Insertar la imagen justo antes del <noscript>
                 noscript.before(img)
             }
             noscript.remove()
         }
 
-    // 🔹 2. Quitar elementos molestos (ads, scripts, iframes, etc.)
+        // 🔹 2. Quitar elementos molestos (ads, scripts, iframes, etc.)
         contentElement.select("script, iframe, .ads, .advertisement, style").remove()
 
-    // 🔹 3. Procesar todas las imágenes
+        // 🔹 3. Procesar todas las imágenes
         contentElement.select("img").forEach { img ->
             val imgUrl = img.absUrl("src")
             if (imgUrl.isNotBlank()) {
@@ -148,7 +148,7 @@ class NOVA : ParsedHttpSource() {
             }
         }
 
-    // 🔹 4. Finalmente, meter el bloque de texto como HTML (si quieres que Tachiyomi lo muestre)
+        // 🔹 4. Finalmente, meter el bloque de texto como HTML (si quieres que Tachiyomi lo muestre)
         val htmlText = contentElement.html()
         if (htmlText.isNotBlank()) {
             pages.add(Page(pages.size, "", "data:text/html;charset=utf-8," + Uri.encode(htmlText)))
