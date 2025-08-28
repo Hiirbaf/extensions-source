@@ -134,8 +134,8 @@ class NOVA : ParsedHttpSource() {
             contentElement.select("p:has(img)").forEach { p ->
                 if (p.childrenSize() == 1 && p.child(0).tagName() == "img") {
                     p.unwrap()
-                    }
                 }
+            }
             // Quitar párrafos vacíos o con solo &nbsp;
             contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
 
