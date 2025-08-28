@@ -120,7 +120,6 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        // Detectar si se debe usar #content o el wrapper
         val contentElement = if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
             document.selectFirst("#content")
         } else {
@@ -134,7 +133,23 @@ class NOVA : ParsedHttpSource() {
             // Quitar párrafos vacíos o con solo &nbsp;
             contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
 
-            // Preservar <p> y <br> tags devolviendo el HTML tal cual
+            // --- Extraer y limpiar URLs de imágenes ---
+            contentElement.select("img").forEach { img ->
+                // Usar src, data-cfsrc o srcset según disponibilidad
+                var imgUrl = img.attr("src")
+                if (imgUrl.isBlank()) imgUrl = img.attr("data-cfsrc")
+                if (imgUrl.isBlank() && img.hasAttr("srcset")) {
+                    imgUrl = img.attr("srcset").split(",").last().trim().split(" ")[0]
+                }
+                // Limpiar sufijo de tamaño
+                val fullSizeUrl = imgUrl.replace(Regex("-\\d+x\\d+(?=\\.jpg)"), "")
+                img.attr("src", fullSizeUrl)
+                // Opcional: quitar srcset para evitar carga de imágenes pequeñas
+                img.removeAttr("srcset")
+                img.removeAttr("data-cfsrc")
+            }
+
+            // Devolver HTML modificado
             val content = contentElement.html().trim()
             return listOf(Page(0, document.location(), content))
         }
