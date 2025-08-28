@@ -36,7 +36,7 @@ class NOVA : ParsedHttpSource() {
         manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
         return manga
     }
-    override fun popularMangaNextPageSelector(): String? = "a.next"
+    override fun popularMangaNextPageSelector(): String? = "a.page-numbers.nav-next"
 
     // --- LATEST UPDATES ---
     override fun latestUpdatesRequest(page: Int): Request {
@@ -49,7 +49,7 @@ class NOVA : ParsedHttpSource() {
 
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
-    override fun latestUpdatesNextPageSelector(): String? = "a.next"
+    override fun latestUpdatesNextPageSelector(): String? = "a.page-numbers.nav-next"
 
     // --- SEARCH ---
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
@@ -63,7 +63,7 @@ class NOVA : ParsedHttpSource() {
 
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
-    override fun searchMangaNextPageSelector(): String? = "a.next"
+    override fun searchMangaNextPageSelector(): String? = "a.page-numbers.nav-next"
 
     // --- MANGA DETAILS ---
     override fun mangaDetailsParse(document: Document): SManga {
