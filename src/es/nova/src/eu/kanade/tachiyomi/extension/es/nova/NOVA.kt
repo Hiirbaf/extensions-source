@@ -131,6 +131,12 @@ class NOVA : ParsedHttpSource() {
             // Quitar el título de la novela dentro del contenido
             contentElement?.select("h1")?.firstOrNull()?.remove()
             contentElement?.select("center")?.remove()
+            // Quitar párrafos vacíos o con solo &nbsp;
+            contentElement?.select("p")?.forEach { el ->
+                if (el.text().isBlank()) {
+                    el.remove()
+                }
+            }
 
             // Preservar <p> y <br> tags devolviendo el HTML tal cual
             val content = contentElement.html().trim()
