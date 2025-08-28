@@ -42,9 +42,9 @@ class NOVA : ParsedHttpSource() {
         val manga = SManga.create()
         val img = element.selectFirst("img")
         val a = element.selectFirst("h4.entry-title a")
-            manga.setUrlWithoutDomain(a?.attr("href")?.replace(baseUrl, "") ?: "")
-            manga.title = a?.text().orEmpty()
-            manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
+        manga.setUrlWithoutDomain(a?.attr("href")?.replace(baseUrl, "") ?: "")
+        manga.title = a?.text().orEmpty()
+        manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
         return manga
     }
     override fun popularMangaNextPageSelector(): String? = "a.next"
