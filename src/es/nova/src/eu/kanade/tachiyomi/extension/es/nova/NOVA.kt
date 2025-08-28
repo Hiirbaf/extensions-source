@@ -16,16 +16,6 @@ class NOVA : ParsedHttpSource() {
     override val lang = "es"
     override val supportsLatest = true
     val isNovelSource: Boolean = true
-    private val searchQuery = "/wp-admin/admin-ajax.php?tags=1&sku=&limit=30&category_results=&order=DESC&category_limit=5&order_by=title&product_thumbnails=1&title=1&excerpt=1&content=&categories=1&attributes=1"
-
-    // --- Utilidad para validar URLs ---
-    private fun safeUrl(element: Element): String {
-        val href = element.attr("href")?.trim()
-        require(!href.isNullOrBlank() && (href.startsWith("http") || href.startsWith("/"))) {
-            "Invalid href: ${element.outerHtml()}"
-        }
-        return href
-    }
 
     // --- POPULAR NOVELS ---
     override fun popularMangaRequest(page: Int): Request {
@@ -99,7 +89,7 @@ class NOVA : ParsedHttpSource() {
 
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
-        val url = safeUrl(element)
+        val url =
         chapter.setUrlWithoutDomain(url.replace(baseUrl, ""))
 
         val chapterPartName = element.text()
