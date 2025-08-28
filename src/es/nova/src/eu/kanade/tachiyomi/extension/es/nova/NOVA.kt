@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.extension.es.nova
 
-import android.net.Uri
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
@@ -153,8 +152,7 @@ class NOVA : ParsedHttpSource() {
         """.trimIndent()
 
         return listOf(
-            Page(0, "", "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8"))
-        )
+            Page(0, "", "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8")))
     }
     override fun imageUrlParse(document: Document): String = ""
 }
