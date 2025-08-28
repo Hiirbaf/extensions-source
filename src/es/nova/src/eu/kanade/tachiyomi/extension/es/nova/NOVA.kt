@@ -152,7 +152,8 @@ class NOVA : ParsedHttpSource() {
         """.trimIndent()
 
         return listOf(
-            Page(0, "", "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8")))
+            Page(0, "", "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8")),
+        )
     }
     override fun imageUrlParse(document: Document): String = ""
 }
