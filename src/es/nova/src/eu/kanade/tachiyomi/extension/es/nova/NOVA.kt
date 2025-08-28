@@ -102,7 +102,7 @@ class NOVA : ParsedHttpSource() {
             ?.text() ?: ""
 
         // --- Parseo del capítulo tipo JS ---
-        val regex = Regex("""(Parte \d+) . (.+?): (.+)""")
+        val regex = Regex("""(Parte \d+)[\s\-:.]+(.+?):\s*(.+)""")
         val matchResult = regex.find(chapterPartName)
 
         val chapterName = if (matchResult != null && matchResult.groupValues.size >= 4) {
