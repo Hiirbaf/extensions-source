@@ -127,13 +127,16 @@ class NOVA : ParsedHttpSource() {
             document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
         }
 
-        // Quitar el título de la novela dentro del contenido
-        contentElement?.select("h1")?.firstOrNull()?.remove()
-            // Preserve <p> and <br> tags by returning HTML as-is
+        if (contentElement != null) {
+            // Quitar el título de la novela dentro del contenido
+            contentElement.select("h1")?.firstOrNull()?.remove()
+
+            // Preservar <p> y <br> tags devolviendo el HTML tal cual
             val content = contentElement.html().trim()
             return listOf(Page(0, document.location(), content))
         }
-        // Fallback: return the whole body HTML if #chr-content is missing
+
+        // Fallback: devolver todo el body si no hay content
         val fallback = document.body().html().trim()
         return listOf(Page(0, document.location(), fallback))
     }
