@@ -30,25 +30,37 @@ class NOVA : ParsedHttpSource() {
 
     // --- POPULAR NOVELS ---
     override fun popularMangaRequest(page: Int): Request {
-        return searchMangaRequest(page, "", FilterList())
+        val url = "$baseUrl/index.php/page/$page/?post_type=product&orderby=popularity"
+        return Request.Builder()
+            .url(url)
+            .headers(headers)
+            .build()
     }
+
     override fun popularMangaSelector(): String = "div.wf-cell"
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
         val img = element.selectFirst("img")
         val a = element.selectFirst("h4.entry-title a")
-        manga.setUrlWithoutDomain(a?.attr("href")?.replace(baseUrl, "") ?: "")
-        manga.title = a?.text().orEmpty()
-        manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
+            manga.setUrlWithoutDomain(a?.attr("href")?.replace(baseUrl, "") ?: "")
+            manga.title = a?.text().orEmpty()
+            manga.thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
         return manga
     }
-    override fun popularMangaNextPageSelector(): String? = null
+    override fun popularMangaNextPageSelector(): String? = "a.next"
 
     // --- LATEST UPDATES ---
-    override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
+    override fun latestUpdatesRequest(page: Int): Request {
+        val url = "$baseUrl/index.php/page/$page/?post_type=product&orderby=date"
+        return Request.Builder()
+            .url(url)
+            .headers(headers)
+            .build()
+    }
+
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
-    override fun latestUpdatesNextPageSelector(): String? = null
+    override fun latestUpdatesNextPageSelector(): String? = "a.next"
 
     // --- SEARCH ---
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
