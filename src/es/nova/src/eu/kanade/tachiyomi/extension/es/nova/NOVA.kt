@@ -132,7 +132,7 @@ class NOVA : ParsedHttpSource() {
             contentElement?.select("h1")?.firstOrNull()?.remove()
             contentElement?.select("center")?.remove()
             // Quitar párrafos vacíos o con solo &nbsp;
-            contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$)")?.remove()
+            contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
 
             // Preservar <p> y <br> tags devolviendo el HTML tal cual
             val content = contentElement.html().trim()
