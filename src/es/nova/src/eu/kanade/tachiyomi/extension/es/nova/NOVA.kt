@@ -133,9 +133,9 @@ class NOVA : ParsedHttpSource() {
             // Quitar <p> que solo contienen una imagen
             contentElement.select("p:has(img)").forEach { p ->
                 if (p.childrenSize() == 1 && p.child(0).tagName() == "img") {
-                    p.replaceWith(p.child(0)) // reemplaza el <p> por el <img>
+                    p.unwrap()
+                    }
                 }
-            }
             // Quitar párrafos vacíos o con solo &nbsp;
             contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
 
