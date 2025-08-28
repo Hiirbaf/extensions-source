@@ -120,22 +120,18 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        val article = document.selectFirst("div.txt #article") ?: return emptyList()
-
-        // Extraer el HTML limpio
-        val contentElement = article.clone()
-
-        // Quitar basura
-        contentElement.select("script, iframe, .ads, .advertisement, style").remove()
-
-        // Extraer texto con saltos de línea
-        val text = contentElement.text().trim()
-
-        // Empaquetar en data URI (lector novela necesita solo 1 Page)
-        val dataUri = "data:text/html;charset=utf-8," + java.net.URLEncoder.encode(text, "UTF-8")
-
-        return listOf(Page(0, "", dataUri))
+        // Extract the main chapter content
+        val contentElement = document.selectFirst("div.txt #article")
+        if (contentElement != null) {
+            // Remove ad/script divs
+            contentElement.select("script, iframe, .ads, .advertisement, style").remove()
+            // Preserve <p> and <br> tags by returning HTML as-is
+            val content = contentElement.html().trim()
+            return listOf(Page(0, document.location(), content))
+        }
+        // Fallback: return the whole body HTML if #chr-content is missing
+        val fallback = document.body().html().trim()
+        return listOf(Page(0, document.location(), fallback))
     }
-
     override fun imageUrlParse(document: Document): String = ""
 }
