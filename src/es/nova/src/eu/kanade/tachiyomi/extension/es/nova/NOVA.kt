@@ -125,7 +125,7 @@ class NOVA : ParsedHttpSource() {
 
         // Mover imágenes de <noscript> a visibles
         content.select("noscript img").forEach { img ->
-            it.parent().before(img)
+            img.parent().before(img)
         }
         content.select("noscript").remove()
 
