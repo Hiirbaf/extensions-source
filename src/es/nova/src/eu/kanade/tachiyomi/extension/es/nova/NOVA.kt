@@ -8,7 +8,6 @@ import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import java.net.URLEncoder
 
 class NOVA : ParsedHttpSource() {
 
@@ -122,42 +121,26 @@ class NOVA : ParsedHttpSource() {
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
         val article = document.selectFirst("div.txt #article") ?: return emptyList()
-        val contentElement = article.clone()
+        val content = article.clone()
 
-        // Pasar imágenes de <noscript> a visibles
-        contentElement.select("noscript").forEach { noscript ->
-            val img = noscript.selectFirst("img")
-            if (img != null) {
-                noscript.before(img)
-            }
-            noscript.remove()
+        // Mover imágenes de <noscript> a visibles
+        content.select("noscript img").forEach { img ->
+            it.parent().before(img)
         }
+        content.select("noscript").remove()
 
         // Limpiar basura
-        contentElement.select("script, iframe, .ads, .advertisement, style").remove()
+        content.select("script, iframe, .ads, .advertisement, style, ins").remove()
 
+        // Construir HTML final
         val htmlText = """
             <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <style>
-                        body { font-family: sans-serif; padding: 10px; line-height: 1.5; }
-                        img { max-width: 100%; height: auto; display: block; margin: 10px 0; }
-                    </style>
-                </head>
-                <body>
-                    ${contentElement.html()}
-                </body>
+                <head><meta charset="UTF-8"></head>
+                <body>${content.html()}</body>
             </html>
         """.trimIndent()
 
-        return listOf(
-            Page(
-                0,
-                "",
-                "data:text/html;charset=utf-8," + URLEncoder.encode(htmlText, "UTF-8"),
-            ),
-        )
+        return listOf(Page(0, "", htmlText))
     }
 
     override fun imageUrlParse(document: Document): String = ""
