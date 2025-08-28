@@ -114,6 +114,9 @@ class NOVA : ParsedHttpSource() {
             document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
         }
 
+        // Quitar el título de la novela dentro del contenido
+        contentElement?.select("h1")?.firstOrNull()?.remove()
+
         // --- Limpieza de anuncios y basura ---
         contentElement?.select("center")?.remove()
 
