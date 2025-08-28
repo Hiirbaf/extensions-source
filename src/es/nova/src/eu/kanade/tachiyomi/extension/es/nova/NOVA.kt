@@ -90,7 +90,7 @@ class NOVA : ParsedHttpSource() {
     override fun chapterFromElement(element: Element): SChapter {
         val chapter = SChapter.create()
         val url =
-        chapter.setUrlWithoutDomain(url.replace(baseUrl, ""))
+            chapter.setUrlWithoutDomain(url.replace(baseUrl, ""))
 
         val chapterPartName = element.text()
 
