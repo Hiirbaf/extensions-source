@@ -106,8 +106,10 @@ class NOVA : ParsedHttpSource() {
 
         // --- Obtener volumen automáticamente ---
         // Busca el volumen más cercano como "Volumen X"
-        val wrapper = element.closest(".wpb_wrapper")
-        val volume = wrapper?.select(".dt-fancy-title")?.firstOrNull()?.text()?.takeIf { it.startsWith("Volumen") } ?: ""
+        val volume = element.parents()
+        .select(".dt-fancy-title")
+        .firstOrNull { it.text().startsWith("Volumen") }
+        ?.text() ?: ""
 
         // --- Parseo del capítulo tipo JS ---
         val regex = Regex("""(Parte \d+) . (.+?): (.+)""")
