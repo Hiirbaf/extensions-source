@@ -135,26 +135,25 @@ class NOVA : ParsedHttpSource() {
 
             // --- Extraer y limpiar URLs de imágenes ---
             contentElement.select("img").forEach { img ->
-                // Usar src, data-cfsrc o srcset según disponibilidad
                 var imgUrl = img.attr("src")
                 if (imgUrl.isBlank()) imgUrl = img.attr("data-cfsrc")
                 if (imgUrl.isBlank() && img.hasAttr("srcset")) {
                     imgUrl = img.attr("srcset").split(",").last().trim().split(" ")[0]
                 }
-                // Limpiar sufijo de tamaño
                 val fullSizeUrl = imgUrl.replace(Regex("-\\d+x\\d+(?=\\.jpg)"), "")
                 img.attr("src", fullSizeUrl)
-                // Opcional: quitar srcset para evitar carga de imágenes pequeñas
                 img.removeAttr("srcset")
                 img.removeAttr("data-cfsrc")
+                img.removeAttr("style") // quita display:none
             }
 
-            // Devolver HTML modificado
+            // --- Eliminar <noscript> para evitar duplicados ---
+            contentElement.select("noscript").remove()
+
             val content = contentElement.html().trim()
             return listOf(Page(0, document.location(), content))
         }
 
-        // Fallback: devolver todo el body si no hay content
         val fallback = document.body().html().trim()
         return listOf(Page(0, document.location(), fallback))
     }
