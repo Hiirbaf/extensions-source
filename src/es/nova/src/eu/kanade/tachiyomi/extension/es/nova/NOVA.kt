@@ -72,8 +72,8 @@ class NOVA : ParsedHttpSource() {
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td")
         description = document.select(".woocommerce-product-details__short-description").text()
         val container = document.selectFirst("div.product.type-product") ?: document.body()
+        val labels = container.select("div.berocket_better_labels b").map { it.text().trim() }
         val genres = container.select(".product_meta .posted_in a").map { it.text().trim() }
-        val labels = container.select(".berocket_better_labels b").map { it.text().trim() }
         genre = (labels + genres).joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
