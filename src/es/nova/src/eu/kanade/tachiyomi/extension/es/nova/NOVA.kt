@@ -71,8 +71,7 @@ class NOVA : ParsedHttpSource() {
         author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td")
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td")
         description = document.select(".woocommerce-product-details__short-description").text()
-        val container = document.selectFirst("div.product.type-product") ?: document.body()
-        val labels = container.select("div.berocket_better_labels b").map { it.text().trim() }
+        val labels = document.select("div.berocket_better_labels").firstOrNull()?.select("> b") { it.text().trim() }?.joinToString(", ").orEmpty()
         val genres = container.select(".product_meta .posted_in a").map { it.text().trim() }
         genre = (labels + genres).joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
