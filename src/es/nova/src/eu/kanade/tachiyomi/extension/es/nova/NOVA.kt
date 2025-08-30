@@ -134,7 +134,6 @@ class NOVA : ParsedHttpSource() {
             // Quitar párrafos vacíos o con solo &nbsp;
             contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
 
-
             val content = contentElement.html().trim()
             return listOf(Page(0, document.location(), content))
         }
