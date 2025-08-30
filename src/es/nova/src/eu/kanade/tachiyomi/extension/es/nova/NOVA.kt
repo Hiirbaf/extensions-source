@@ -71,6 +71,8 @@ class NOVA : ParsedHttpSource() {
         author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td")
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td")
         description = document.select(".woocommerce-product-details__short-description").text()
+        genre = document.select(".product_meta .posted_in a")
+        .joinToString(", ") { it.text() }
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
             "completado", "completed" -> SManga.COMPLETED
