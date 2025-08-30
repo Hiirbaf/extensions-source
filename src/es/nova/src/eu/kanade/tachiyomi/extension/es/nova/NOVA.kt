@@ -126,14 +126,10 @@ class NOVA : ParsedHttpSource() {
             document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
         }
 
-        if (contentElement != null) {
-            contentElement?.apply {
-                // Eliminar elementos molestos
-                select("h1, center, img.aligncenter.size-large").remove()
-
-                val content = html().trim()
-                return listOf(Page(0, document.location(), content))
-            }
+        contentElement?.apply {
+            select("h1, center, img.aligncenter.size-large").remove()
+            return listOf(Page(0, document.location(), html().trim()))
+        }
 
         val fallback = document.body().html().trim()
         return listOf(Page(0, document.location(), fallback))
