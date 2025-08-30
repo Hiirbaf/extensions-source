@@ -130,32 +130,10 @@ class NOVA : ParsedHttpSource() {
             // Quitar el título de la novela dentro del contenido
             contentElement?.select("h1")?.firstOrNull()?.remove()
             contentElement?.select("center")?.remove()
-            // Quitar <p> que solo contienen una imagen
-            contentElement.select("p").forEach { p ->
-                if (p.childrenSize() == 1 && p.child(0).tagName() == "img" && p.ownText().isBlank()) {
-                    val img = p.child(0)
-                    p.replaceWith(img)
-                }
-            }
+            contentElement.select("img.aligncenter.size-large").remove()
             // Quitar párrafos vacíos o con solo &nbsp;
             contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
 
-            // --- Extraer y limpiar URLs de imágenes ---
-            contentElement.select("img").forEach { img ->
-                var imgUrl = img.attr("src")
-                if (imgUrl.isBlank()) imgUrl = img.attr("data-cfsrc")
-                if (imgUrl.isBlank() && img.hasAttr("srcset")) {
-                    imgUrl = img.attr("srcset").split(",").last().trim().split(" ")[0]
-                }
-                val fullSizeUrl = imgUrl.replace(Regex("-\\d+x\\d+(?=\\.jpg)"), "")
-                img.attr("src", fullSizeUrl)
-                img.removeAttr("srcset")
-                img.removeAttr("data-cfsrc")
-                img.removeAttr("style") // quita display:none
-            }
-
-            // --- Eliminar <noscript> para evitar duplicados ---
-            contentElement.select("noscript").remove()
 
             val content = contentElement.html().trim()
             return listOf(Page(0, document.location(), content))
