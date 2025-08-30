@@ -127,16 +127,13 @@ class NOVA : ParsedHttpSource() {
         }
 
         if (contentElement != null) {
-            // Quitar el título de la novela dentro del contenido
-            contentElement?.select("h1")?.firstOrNull()?.remove()
-            contentElement?.select("center")?.remove()
-            contentElement.select("img.aligncenter.size-large").remove()
-            // Quitar párrafos vacíos o con solo &nbsp;
-            contentElement?.select("p:matchesOwn(^[\\s\u00A0]*$):not(:has(*))")?.remove()
+            contentElement?.apply {
+                // Eliminar elementos molestos
+                select("h1, center, img.aligncenter.size-large").remove()
 
-            val content = contentElement.html().trim()
-            return listOf(Page(0, document.location(), content))
-        }
+                val content = html().trim()
+                return listOf(Page(0, document.location(), content))
+            }
 
         val fallback = document.body().html().trim()
         return listOf(Page(0, document.location(), fallback))
