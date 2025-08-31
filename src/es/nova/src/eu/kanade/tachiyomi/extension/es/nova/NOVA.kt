@@ -122,11 +122,12 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        val contentElement = when {
-            document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick") ->
-                document.selectFirst("#content")
-            else -> document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
-        }
+        val contentElement = document.selectFirst(
+            if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick"))
+            "#content"
+            else
+            ".wpb_text_column.wpb_content_element > .wpb_wrapper"
+        )
 
         contentElement?.select("h1, center, img.aligncenter.size-large")?.remove()
         val content = contentElement?.html()?.trim() ?: document.body().html().trim()
