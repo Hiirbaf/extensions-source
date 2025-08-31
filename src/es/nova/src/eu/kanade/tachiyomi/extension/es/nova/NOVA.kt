@@ -66,6 +66,7 @@ class NOVA : ParsedHttpSource() {
     override fun mangaDetailsParse(document: Document) = SManga.create().apply {
         val product = document.selectFirst("div.product.type-product[id^=product-]")
         val coverImg = document.selectFirst(".woocommerce-product-gallery img")
+        val desc = document.select(".woocommerce-product-details__short-description").text()
         val labels: List<String> = product
             ?.select(".woocommerce-product-gallery .berocket_better_labels b")
             ?.eachText()
@@ -82,14 +83,13 @@ class NOVA : ParsedHttpSource() {
         thumbnail_url = coverImg?.attr("src") ?: coverImg?.attr("data-cfsrc")
         author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td").orEmpty()
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").orEmpty()
-        val desc = document.select(".woocommerce-product-details__short-description").text()
         description = buildString {
             if (labels.isNotEmpty()) {
                 append(labels.joinToString(" ", prefix = "[", postfix = "]") { it })
                 append("\n\n")
-                }
-            append(desc)
             }
+            append(desc)
+        }
 
         genre = genres.joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
