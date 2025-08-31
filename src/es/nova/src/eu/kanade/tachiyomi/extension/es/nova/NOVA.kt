@@ -25,20 +25,31 @@ class NOVA : ParsedHttpSource() {
 
     private companion object {
         private const val NEXT_PAGE_SELECTOR = "a.page-numbers.nav-next"
+        private val CHAPTER_REGEX = Regex("""(Parte \d+)[\s\-:.\–]+(.+?):\s*(.+)""")
+        private const val ITEM_SELECTOR = "div.wf-cell"
     }
+
+    // --- HELPERS ---
+    private fun Element.extractThumbnail(): String? =
+        attr("data-src").takeIf { it.isNotBlank() } ?: attr("src")
+
+    private fun Document.detail(selector: String): String? =
+        selectFirst(selector)?.text()?.takeIf { it.isNotBlank() }
+
+    private fun Document.textOrEmpty(selector: String) = detail(selector).orEmpty()
 
     // --- POPULAR NOVELS ---
     override fun popularMangaRequest(page: Int) =
         GET("$baseUrl/index.php/page/$page/?post_type=product&orderby=popularity")
 
-    override fun popularMangaSelector(): String = "div.wf-cell"
+    override fun popularMangaSelector(): String = ITEM_SELECTOR
 
     override fun popularMangaFromElement(element: Element) = SManga.create().apply {
         val img = element.selectFirst("img")
         val a = element.selectFirst("h4.entry-title a")
         setUrlWithoutDomain(a?.attr("href")?.removePrefix(baseUrl).orEmpty())
         title = a?.text().orEmpty()
-        thumbnail_url = img?.attr("data-src") ?: img?.attr("data-cfsrc")
+        thumbnail_url = img?.extractThumbnail()
     }
 
     override fun popularMangaNextPageSelector(): String? = NEXT_PAGE_SELECTOR
@@ -47,7 +58,7 @@ class NOVA : ParsedHttpSource() {
     override fun latestUpdatesRequest(page: Int) =
         GET("$baseUrl/index.php/page/$page/?post_type=product&orderby=date")
 
-    override fun latestUpdatesSelector(): String = popularMangaSelector()
+    override fun latestUpdatesSelector(): String = ITEM_SELECTOR
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector(): String? = NEXT_PAGE_SELECTOR
 
@@ -57,43 +68,31 @@ class NOVA : ParsedHttpSource() {
         return GET("$baseUrl/index.php/page/$page/?s=$encodedQuery&post_type=product&orderby=relevance")
     }
 
-    override fun searchMangaSelector(): String = popularMangaSelector()
+    override fun searchMangaSelector(): String = ITEM_SELECTOR
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = NEXT_PAGE_SELECTOR
 
     // --- MANGA DETAILS ---
-    private fun Document.detail(selector: String): String? =
-        select(selector).text().takeIf { it.isNotBlank() }
-
     override fun mangaDetailsParse(document: Document) = SManga.create().apply {
         val product = document.selectFirst("div.product.type-product[id^=product-]")
         val coverImg = document.selectFirst(".woocommerce-product-gallery img")
         val desc = document.select(".woocommerce-product-details__short-description").text()
-        val labels: List<String> = product
+        val labels = product
             ?.select(".woocommerce-product-gallery .berocket_better_labels b")
             ?.eachText()
             ?.map { it.trim() }
             ?.distinct()
             ?.take(2)
             ?: emptyList()
-        val genres: List<String> = document
-            .select(".product_meta .posted_in a")
-            .eachText()
-            .map { it.trim() }
+        val genres = document.select(".product_meta .posted_in a").eachText().map { it.trim() }
 
         title = document.selectFirst("h1")?.text().orEmpty()
-        thumbnail_url = coverImg?.attr("data-src")?.takeIf { it.isNotBlank() } ?: coverImg?.attr("src")
-        author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td").orEmpty()
-        artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").orEmpty()
-        description = buildString {
-            if (labels.isNotEmpty()) {
-                append(labels.joinToString(" ") { "[$it]" })
-                append("\n\n")
-            }
-            append(desc)
-        }
+        thumbnail_url = coverImg?.extractThumbnail()
+        author = document.textOrEmpty(".woocommerce-product-attributes-item--attribute_pa_escritor td")
+        artist = document.textOrEmpty(".woocommerce-product-attributes-item--attribute_pa_ilustrador td")
+        description = (labels.joinToString(" ") { "[$it]" } + "\n\n" + desc).trim()
         genre = genres.joinToString(", ")
-        status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
+        status = when (document.textOrEmpty(".woocommerce-product-attributes-item--attribute_pa_estado td").lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
             "completado", "completed" -> SManga.COMPLETED
             else -> SManga.UNKNOWN
@@ -113,8 +112,7 @@ class NOVA : ParsedHttpSource() {
             .firstOrNull { it.text().startsWith("Volumen") }
             ?.text().orEmpty()
 
-        val regex = Regex("""(Parte \d+)[\s\-:.\–]+(.+?):\s*(.+)""")
-        name = regex.find(chapterPartName)?.let { m ->
+        name = CHAPTER_REGEX.find(chapterPartName)?.let { m ->
             val part = m.groupValues[1]
             val chapterNum = m.groupValues[2]
             val title = m.groupValues[3]
@@ -129,20 +127,21 @@ class NOVA : ParsedHttpSource() {
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val body = response.body?.string().orEmpty()
-        val doc = Jsoup.parse(body)
-        return doc.select(chapterListSelector())
-            .map { chapterFromElement(it) }
-            .reversed()
+        response.body?.use { body ->
+            val doc = Jsoup.parse(body.string())
+            return doc.select(chapterListSelector())
+                .map { chapterFromElement(it) }
+                .reversed()
+        }
+        return emptyList()
     }
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        val contentElement = when {
-            document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick") ->
-                document.selectFirst("#content")
-            else -> document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
-        }
+        val contentElement = document.selectFirst(
+            "#content, .wpb_text_column.wpb_content_element > .wpb_wrapper"
+        )?.takeIf { !it.text().contains("Nadie entra sin permiso") }
+            ?: document.selectFirst("#content")
 
         val content = contentElement?.apply {
             select("h1, center, img.aligncenter.size-large").remove()
