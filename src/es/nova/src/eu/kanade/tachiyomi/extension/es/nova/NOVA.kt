@@ -64,22 +64,32 @@ class NOVA : ParsedHttpSource() {
         select(selector).text().takeIf { it.isNotBlank() }
 
     override fun mangaDetailsParse(document: Document) = SManga.create().apply {
+        val product = document.selectFirst("div.product.type-product[id^=product-]")
         val coverImg = document.selectFirst(".woocommerce-product-gallery img")
+        val labels: List<String> = product
+            ?.select(".woocommerce-product-gallery .berocket_better_labels b")
+            ?.eachText()
+            ?.map { it.trim() }
+            ?.distinct()
+            ?.take(2)
+            ?: emptyList()
+        val genres: List<String> = document
+            .select(".product_meta .posted_in a")
+            .eachText()
+            .map { it.trim() }
 
         title = document.selectFirst("h1")?.text().orEmpty()
         thumbnail_url = coverImg?.attr("src") ?: coverImg?.attr("data-cfsrc")
-        author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td")
-        artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td")
+        author = document.select(".woocommerce-product-attributes-item--attribute_pa_escritor td").text()
+        artist = document.select(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").text()
         description = document.select(".woocommerce-product-details__short-description").text()
-        val product = document.selectFirst("div.product") ?: document
-        val labels = product.select("div.berocket_better_labels b").map { it.text().trim() }.takeIf { it.isNotEmpty() } ?: emptyList()
-        val genres = product.select(".product_meta .posted_in a").map { it.text().trim() }
         genre = (labels + genres).joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
             "completado", "completed" -> SManga.COMPLETED
             else -> SManga.UNKNOWN
         }
+
     }
 
     // --- CHAPTERS ---
