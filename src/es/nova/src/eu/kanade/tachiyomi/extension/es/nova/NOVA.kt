@@ -20,77 +20,69 @@ class NOVA : ParsedHttpSource() {
     override val supportsLatest = true
     val isNovelSource: Boolean = true
 
-    private fun GET(url: String): Request =
-        Request.Builder().url(url).headers(headers).build()
-
     private companion object {
         private const val NEXT_PAGE_SELECTOR = "a.page-numbers.nav-next"
-        private val CHAPTER_REGEX = Regex("""(Parte \d+)[\s\-:.\–]+(.+?):\s*(.+)""")
         private const val ITEM_SELECTOR = "div.wf-cell"
+        private val CHAPTER_REGEX = Regex("""(Parte \d+)[\s\-:.\–]+(.+?):\s*(.+)""")
     }
+
+    private fun GET(url: String) = Request.Builder().url(url).headers(headers).build()
 
     // --- HELPERS ---
     private fun Element.extractThumbnail(): String? =
         attr("data-src").takeIf { it.isNotBlank() } ?: attr("src")
 
-    private fun Document.detail(selector: String): String? =
-        selectFirst(selector)?.text()?.takeIf { it.isNotBlank() }
+    private fun Document.detail(selector: String) = selectFirst(selector)?.text()?.takeIf { it.isNotBlank() }
 
     private fun Document.textOrEmpty(selector: String) = detail(selector).orEmpty()
 
-    // --- POPULAR NOVELS ---
-    override fun popularMangaRequest(page: Int) =
-        GET("$baseUrl/index.php/page/$page/?post_type=product&orderby=popularity")
-
-    override fun popularMangaSelector(): String = ITEM_SELECTOR
-
-    override fun popularMangaFromElement(element: Element) = SManga.create().apply {
+    private fun parseMangaElement(element: Element) = SManga.create().apply {
         val img = element.selectFirst("img")
-        val a = element.selectFirst("h4.entry-title a")
-        setUrlWithoutDomain(a?.attr("href")?.removePrefix(baseUrl).orEmpty())
-        title = a?.text().orEmpty()
+        val link = element.selectFirst("h4.entry-title a")
+        setUrlWithoutDomain(link?.attr("href")?.removePrefix(baseUrl).orEmpty())
+        title = link?.text().orEmpty()
         thumbnail_url = img?.extractThumbnail()
     }
 
-    override fun popularMangaNextPageSelector(): String? = NEXT_PAGE_SELECTOR
-
-    // --- LATEST UPDATES ---
+    // --- POPULAR / LATEST / SEARCH ---
+    override fun popularMangaRequest(page: Int) =
+        GET("$baseUrl/index.php/page/$page/?post_type=product&orderby=popularity")
     override fun latestUpdatesRequest(page: Int) =
         GET("$baseUrl/index.php/page/$page/?post_type=product&orderby=date")
-
-    override fun latestUpdatesSelector(): String = ITEM_SELECTOR
-    override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
-    override fun latestUpdatesNextPageSelector(): String? = NEXT_PAGE_SELECTOR
-
-    // --- SEARCH ---
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val encodedQuery = URLEncoder.encode(query, "UTF-8")
-        return GET("$baseUrl/index.php/page/$page/?s=$encodedQuery&post_type=product&orderby=relevance")
+        val q = URLEncoder.encode(query, "UTF-8")
+        return GET("$baseUrl/index.php/page/$page/?s=$q&post_type=product&orderby=relevance")
     }
 
-    override fun searchMangaSelector(): String = ITEM_SELECTOR
-    override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
-    override fun searchMangaNextPageSelector(): String? = NEXT_PAGE_SELECTOR
+    override fun popularMangaSelector() = ITEM_SELECTOR
+    override fun latestUpdatesSelector() = ITEM_SELECTOR
+    override fun searchMangaSelector() = ITEM_SELECTOR
+
+    override fun popularMangaFromElement(element: Element) = parseMangaElement(element)
+    override fun latestUpdatesFromElement(element: Element) = parseMangaElement(element)
+    override fun searchMangaFromElement(element: Element) = parseMangaElement(element)
+
+    override fun popularMangaNextPageSelector() = NEXT_PAGE_SELECTOR
+    override fun latestUpdatesNextPageSelector() = NEXT_PAGE_SELECTOR
+    override fun searchMangaNextPageSelector() = NEXT_PAGE_SELECTOR
 
     // --- MANGA DETAILS ---
     override fun mangaDetailsParse(document: Document) = SManga.create().apply {
         val product = document.selectFirst("div.product.type-product[id^=product-]")
         val coverImg = document.selectFirst(".woocommerce-product-gallery img")
-        val desc = document.select(".woocommerce-product-details__short-description").text()
         val labels = product
             ?.select(".woocommerce-product-gallery .berocket_better_labels b")
             ?.eachText()
             ?.map { it.trim() }
             ?.distinct()
-            ?.take(2)
-            ?: emptyList()
+            ?.take(2) ?: emptyList()
         val genres = document.select(".product_meta .posted_in a").eachText().map { it.trim() }
 
         title = document.selectFirst("h1")?.text().orEmpty()
         thumbnail_url = coverImg?.extractThumbnail()
         author = document.textOrEmpty(".woocommerce-product-attributes-item--attribute_pa_escritor td")
         artist = document.textOrEmpty(".woocommerce-product-attributes-item--attribute_pa_ilustrador td")
-        description = (labels.joinToString(" ") { "[$it]" } + "\n\n" + desc).trim()
+        description = (labels.joinToString(" ") { "[$it]" } + "\n\n" + document.select(".woocommerce-product-details__short-description").text()).trim()
         genre = genres.joinToString(", ")
         status = when (document.textOrEmpty(".woocommerce-product-attributes-item--attribute_pa_estado td").lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
@@ -100,38 +92,30 @@ class NOVA : ParsedHttpSource() {
     }
 
     // --- CHAPTERS ---
-    override fun chapterListSelector(): String =
-        ".vc_row div.vc_column-inner > div.wpb_wrapper .wpb_tab a"
+    override fun chapterListSelector() = ".vc_row div.vc_column-inner > div.wpb_wrapper .wpb_tab a"
 
     override fun chapterFromElement(element: Element) = SChapter.create().apply {
         setUrlWithoutDomain(element.attr("href").removePrefix(baseUrl))
 
-        val chapterPartName = element.text()
-        val volume = element.parents()
-            .select(".dt-fancy-title")
-            .firstOrNull { it.text().startsWith("Volumen") }
-            ?.text().orEmpty()
+        val chapterText = element.text()
+        val volume = element.parents().select(".dt-fancy-title").firstOrNull { it.text().startsWith("Volumen") }?.text().orEmpty()
 
-        name = CHAPTER_REGEX.find(chapterPartName)?.let { m ->
-            val part = m.groupValues[1]
-            val chapterNum = m.groupValues[2]
-            val title = m.groupValues[3]
+        name = CHAPTER_REGEX.find(chapterText)?.let { m ->
+            val (part, number, title) = m.destructured
             buildString {
                 if (volume.isNotBlank()) append("$volume - ")
-                append("$chapterNum - $part: $title")
+                append("$number - $part: $title")
             }
         } ?: buildString {
             if (volume.isNotBlank()) append("$volume - ")
-            append(chapterPartName)
+            append(chapterText)
         }
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         response.body?.use { body ->
             val doc = Jsoup.parse(body.string())
-            return doc.select(chapterListSelector())
-                .map { chapterFromElement(it) }
-                .reversed()
+            return doc.select(chapterListSelector()).map { chapterFromElement(it) }.reversed()
         }
         return emptyList()
     }
@@ -142,12 +126,11 @@ class NOVA : ParsedHttpSource() {
             ?.takeIf { !it.text().contains("Nadie entra sin permiso") }
             ?: document.selectFirst("#content")
 
-        val content = contentElement?.apply {
-            select("h1, center, img.aligncenter.size-large").remove()
-        }?.html()?.trim() ?: document.body().html().trim()
+        contentElement?.select("h1, center, img.aligncenter.size-large")?.remove()
+        val content = contentElement?.html()?.trim() ?: document.body().html().trim()
 
         return listOf(Page(0, document.location(), content))
     }
 
-    override fun imageUrlParse(document: Document): String = ""
+    override fun imageUrlParse(document: Document) = ""
 }
