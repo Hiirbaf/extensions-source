@@ -80,8 +80,8 @@ class NOVA : ParsedHttpSource() {
 
         title = document.selectFirst("h1")?.text().orEmpty()
         thumbnail_url = coverImg?.attr("src") ?: coverImg?.attr("data-cfsrc")
-        author = document.select(".woocommerce-product-attributes-item--attribute_pa_escritor td").text()
-        artist = document.select(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").text()
+        author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td").orEmpty()
+        artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").orEmpty()
         description = document.select(".woocommerce-product-details__short-description").text()
         genre = (labels + genres).joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
