@@ -82,8 +82,16 @@ class NOVA : ParsedHttpSource() {
         thumbnail_url = coverImg?.attr("src") ?: coverImg?.attr("data-cfsrc")
         author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td").orEmpty()
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").orEmpty()
-        description = document.select(".woocommerce-product-details__short-description").text()
-        genre = (labels + genres).joinToString(", ")
+        val desc = document.select(".woocommerce-product-details__short-description").text()
+        description = buildString {
+            if (labels.isNotEmpty()) {
+                append(labels.joinToString(" ", prefix = "[", postfix = "]") { it })
+                append("\n\n")
+                }
+            append(desc)
+            }
+
+        genre = genres.joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
             "completado", "completed" -> SManga.COMPLETED
