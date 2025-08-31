@@ -126,6 +126,15 @@ class NOVA : ParsedHttpSource() {
         }
     }
 
+    override fun chapterListParse(response: Response): List<SChapter> {
+        // Reverse order so the newest chapter appears first
+        val body = response.body?.string().orEmpty()
+        val doc = Jsoup.parse(body)
+        return doc.select(chapterListSelector())
+            .map { chapterFromElement(it) }
+            .reversed()
+    }
+
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
         val contentElement = when {
