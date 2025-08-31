@@ -124,9 +124,9 @@ class NOVA : ParsedHttpSource() {
     override fun pageListParse(document: Document): List<Page> {
         val contentElement = document.selectFirst(
             if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick"))
-            "#content"
+                "#content"
             else
-            ".wpb_text_column.wpb_content_element > .wpb_wrapper"
+                ".wpb_text_column.wpb_content_element > .wpb_wrapper"
         )
 
         contentElement?.select("h1, center, img.aligncenter.size-large")?.remove()
