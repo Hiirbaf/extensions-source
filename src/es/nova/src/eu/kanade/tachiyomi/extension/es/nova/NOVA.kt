@@ -125,7 +125,7 @@ class NOVA : ParsedHttpSource() {
         val contentElement = document.selectFirst(
             if (document.html().contains("Nadie entra sin permiso en la Gran Tumba de Nazarick")) {
                 "#content"
-                { else }
+            } else {
                 ".wpb_text_column.wpb_content_element > .wpb_wrapper"
             },
         )
