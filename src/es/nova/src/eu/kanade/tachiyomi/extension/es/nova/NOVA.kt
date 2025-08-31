@@ -85,12 +85,11 @@ class NOVA : ParsedHttpSource() {
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").orEmpty()
         description = buildString {
             if (labels.isNotEmpty()) {
-                append(labels.joinToString(" ", prefix = "[", postfix = "]") { it })
+                append(labels.joinToString(" ") { "[${it}]" })
                 append("\n\n")
             }
             append(desc)
         }
-
         genre = genres.joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
