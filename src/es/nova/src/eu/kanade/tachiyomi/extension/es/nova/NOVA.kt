@@ -82,7 +82,7 @@ class NOVA : ParsedHttpSource() {
             .map { it.trim() }
 
         title = document.selectFirst("h1")?.text().orEmpty()
-        thumbnail_url = coverImg?.attr("src") ?: coverImg?.attr("data-cfsrc")
+        thumbnail_url = coverImg?.attr("data-src")?.takeIf { it.isNotBlank() } ?: coverImg?.attr("src")
         author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td").orEmpty()
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").orEmpty()
         description = buildString {
@@ -129,7 +129,6 @@ class NOVA : ParsedHttpSource() {
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        // Reverse order so the newest chapter appears first
         val body = response.body?.string().orEmpty()
         val doc = Jsoup.parse(body)
         return doc.select(chapterListSelector())
