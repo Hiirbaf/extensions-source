@@ -85,7 +85,7 @@ class NOVA : ParsedHttpSource() {
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td").orEmpty()
         description = buildString {
             if (labels.isNotEmpty()) {
-                append(labels.joinToString(" ") { "[${it}]" })
+                append(labels.joinToString(" ") { "[$it]" })
                 append("\n\n")
             }
             append(desc)
