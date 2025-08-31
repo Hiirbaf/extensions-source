@@ -89,7 +89,6 @@ class NOVA : ParsedHttpSource() {
             "completado", "completed" -> SManga.COMPLETED
             else -> SManga.UNKNOWN
         }
-
     }
 
     // --- CHAPTERS ---
