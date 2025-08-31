@@ -128,9 +128,8 @@ class NOVA : ParsedHttpSource() {
             else -> document.selectFirst(".wpb_text_column.wpb_content_element > .wpb_wrapper")
         }
 
-        val content = contentElement?.apply {
-            select("h1, center, img.aligncenter.size-large").remove()
-        }?.html()?.trim() ?: document.body().html().trim()
+        contentElement?.select("h1, center, img.aligncenter.size-large")?.remove()
+        val content = contentElement?.html()?.trim() ?: document.body().html().trim()
 
         return listOf(Page(0, document.location(), content))
     }
