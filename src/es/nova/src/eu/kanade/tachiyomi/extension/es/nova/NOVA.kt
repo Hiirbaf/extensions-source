@@ -138,9 +138,8 @@ class NOVA : ParsedHttpSource() {
 
     // --- CHAPTER TEXT ---
     override fun pageListParse(document: Document): List<Page> {
-        val contentElement = document.selectFirst(
-            "#content, .wpb_text_column.wpb_content_element > .wpb_wrapper"
-        )?.takeIf { !it.text().contains("Nadie entra sin permiso") }
+        val contentElement = document.selectFirst("#content, .wpb_text_column.wpb_content_element > .wpb_wrapper")
+            ?.takeIf { !it.text().contains("Nadie entra sin permiso") }
             ?: document.selectFirst("#content")
 
         val content = contentElement?.apply {
