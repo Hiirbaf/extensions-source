@@ -71,9 +71,10 @@ class NOVA : ParsedHttpSource() {
         author = document.detail(".woocommerce-product-attributes-item--attribute_pa_escritor td")
         artist = document.detail(".woocommerce-product-attributes-item--attribute_pa_ilustrador td")
         description = document.select(".woocommerce-product-details__short-description").text()
-        val labels = document.select("div.berocket_better_labels").firstOrNull()?.select("b")?.map { it.text().trim() } ?: emptyList()
-        val genres = document.select(".product_meta .posted_in a").map { it.text().trim() }
-        genre = (labels + genres).joinToString(", ")
+        val product = document.selectFirst("div.product") ?: document
+        val labels = product.selectFirst("div.berocket_better_labels")?.select("b")?.map { it.text().trim() } ?: emptyList()
+        val genres = product.select(".product_meta .posted_in a").map { it.text().trim() }
+        genre = (labels + genres).distinct().joinToString(", ")
         status = when (document.detail(".woocommerce-product-attributes-item--attribute_pa_estado td")?.lowercase()) {
             "en curso", "ongoing" -> SManga.ONGOING
             "completado", "completed" -> SManga.COMPLETED
