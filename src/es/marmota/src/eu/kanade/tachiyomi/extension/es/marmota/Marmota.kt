@@ -19,8 +19,10 @@ class Marmota : Madara(
 
     override fun mangaDetailsParse(document: Document): SManga {
         return super.mangaDetailsParse(document).apply {
-            // 👇 Forzamos tipo cómic para que Yōkai lo abra con modo cómic (LTR)
-            type = SManga.TYPE_COMIC
+            genre = when {
+                genre.isNullOrBlank() -> "Comic"
+                else -> genre + ", Comic"
+            }
         }
     }
 }
