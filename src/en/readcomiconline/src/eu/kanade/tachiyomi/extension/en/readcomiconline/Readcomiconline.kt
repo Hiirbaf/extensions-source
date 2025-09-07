@@ -175,10 +175,14 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
 
     override fun mangaDetailsParse(document: Document): SManga {
-        val infoElement = document.select("div.barContent").first()!!
+        val infoElement = document.selectFirst("div.barContent")!!
 
         val manga = SManga.create()
-        manga.title = infoElement.selectFirst("a.bigChar")!!.text()
+
+        val titleElement = infoElement.selectFirst("a.bigChar")
+        manga.title = titleElement?.attr("title")?.takeIf { it.isNotBlank() }
+            ?: titleElement?.ownText()?.trim().orEmpty()
+
         manga.artist = infoElement.select("p:has(span:contains(Artist:)) > a").first()?.text()
         manga.author = infoElement.select("p:has(span:contains(Writer:)) > a").first()?.text()
         manga.genre = infoElement.select("p:has(span:contains(Genres:)) > *:gt(0)").text()
@@ -186,6 +190,7 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
         manga.status = infoElement.select("p:has(span:contains(Status:))").first()?.text().orEmpty()
             .let { parseStatus(it) }
         manga.thumbnail_url = document.select(".rightBox:eq(0) img").first()?.absUrl("src")
+
         return manga
     }
 
