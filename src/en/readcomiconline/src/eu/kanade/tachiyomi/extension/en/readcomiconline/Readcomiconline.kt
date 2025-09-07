@@ -180,13 +180,18 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
         val manga = SManga.create()
 
         val titleElement = infoElement.selectFirst("a.bigChar")
-        manga.title = titleElement?.attr("title")?.takeIf { it.isNotBlank() }
+        val fullTitle = titleElement?.attr("title")?.takeIf { it.isNotBlank() }
             ?: titleElement?.ownText()?.trim().orEmpty()
+
+        manga.title = fullTitle
 
         manga.artist = infoElement.select("p:has(span:contains(Artist:)) > a").first()?.text()
         manga.author = infoElement.select("p:has(span:contains(Writer:)) > a").first()?.text()
         manga.genre = infoElement.select("p:has(span:contains(Genres:)) > *:gt(0)").text()
-        manga.description = infoElement.select("p:has(span:contains(Summary:)) ~ p").text()
+    
+        val descriptionText = infoElement.select("p:has(span:contains(Summary:)) ~ p").text()
+        manga.description = "Título completo: $fullTitle\n\n$descriptionText"
+
         manga.status = infoElement.select("p:has(span:contains(Status:))").first()?.text().orEmpty()
             .let { parseStatus(it) }
         manga.thumbnail_url = document.select(".rightBox:eq(0) img").first()?.absUrl("src")
