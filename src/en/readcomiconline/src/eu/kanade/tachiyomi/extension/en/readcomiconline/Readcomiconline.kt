@@ -205,7 +205,7 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
                 parsed.title = parsed.title // forzar el título completo
                 parsed.initialized = true
                 parsed
-        }
+            }
     }
 
     private fun realMangaDetailsRequest(manga: SManga): Request = super.mangaDetailsRequest(manga)
