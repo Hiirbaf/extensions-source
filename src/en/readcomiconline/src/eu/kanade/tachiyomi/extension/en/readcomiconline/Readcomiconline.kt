@@ -4,7 +4,6 @@ import android.content.SharedPreferences
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.source.ConfigurableSource
-import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
@@ -44,8 +43,8 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
     }
 
     private var captchaUrl: String? = null
-    private val preferences: SharedPreferences by lazy { 
-        throw NotImplementedError("Preferences initialization needed") 
+    private val preferences: SharedPreferences by lazy {
+        throw NotImplementedError("Preferences initialization needed")
     }
 
     override fun popularMangaSelector() = ".list-comic > .item > a:first-child"
