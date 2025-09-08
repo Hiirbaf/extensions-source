@@ -221,3 +221,7 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
                 val request = Request.Builder().url(url).head().build()
                 client.newCall(request).execute().use {
                     if (it.isSuccessful) Page(idx, imageUrl = url) else null
+                }
+            }
+        }
+    }
