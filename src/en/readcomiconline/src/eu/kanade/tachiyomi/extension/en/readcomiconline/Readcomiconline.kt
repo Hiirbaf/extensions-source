@@ -225,3 +225,4 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
             }
         }
     }
+}
