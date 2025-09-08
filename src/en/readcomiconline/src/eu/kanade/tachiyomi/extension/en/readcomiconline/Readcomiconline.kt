@@ -198,10 +198,14 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
     }
 
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
-        return client.newCall(realMangaDetailsRequest(manga)).asObservableSuccess()
+        return client.newCall(mangaDetailsRequest(manga)).asObservableSuccess()
             .map { response ->
-                mangaDetailsParse(response).apply { initialized = true }
-            }
+                val parsed = mangaDetailsParse(response)
+                parsed.url = manga.url // conservar URL original
+                parsed.title = parsed.title // forzar el título completo
+                parsed.initialized = true
+                parsed
+        }
     }
 
     private fun realMangaDetailsRequest(manga: SManga): Request = super.mangaDetailsRequest(manga)
