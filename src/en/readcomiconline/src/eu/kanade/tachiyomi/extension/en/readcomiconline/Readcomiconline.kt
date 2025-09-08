@@ -101,7 +101,6 @@ class Readcomiconline : ParsedHttpSource() {
     }
 
     override fun imageUrlParse(document: Document) = ""
-    
     private fun parseStatus(status: String) = when {
         status.contains("Ongoing") -> SManga.ONGOING
         status.contains("Completed") -> SManga.COMPLETED
