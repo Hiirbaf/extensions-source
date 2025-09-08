@@ -78,7 +78,7 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
     // ==================== Search ====================
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         if (query.isEmpty() && (if (filters.isEmpty()) getFilterList() else filters)
-        .filterIsInstance<GenreList>().all { it.included.isEmpty() && it.excluded.isEmpty() }
+            .filterIsInstance<GenreList>().all { it.included.isEmpty() && it.excluded.isEmpty() }
         ) {
             val url = baseUrl.toHttpUrl().newBuilder().apply {
                 var pathSegmentAdded = false
@@ -211,7 +211,9 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
                 val eval = "let _decryptedLinks = ${Json.encodeToString(encryptedLinks)};let _useServer2 = $useSecondServer;${remoteConfigItem!!.postDecryptEval}"
                 (it.evaluate(eval) as String).parseAs<MutableList<String>>()
             }
-        } else encryptedLinks
+        } else {
+            encryptedLinks
+        }
 
         return finalLinks.mapIndexedNotNull { idx, url ->
             if (!remoteConfigItem!!.shouldVerifyLinks) {
