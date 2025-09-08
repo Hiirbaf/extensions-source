@@ -16,9 +16,7 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import rx.Observable
-import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
 
 class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
