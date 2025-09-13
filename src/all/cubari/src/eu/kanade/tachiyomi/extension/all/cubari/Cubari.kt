@@ -280,18 +280,23 @@ open class Cubari(override val lang: String) : HttpSource() {
         val seriesSlug = jsonObj["slug"]!!.jsonPrimitive.content
 
         val seriesPrefs = Injekt.get<Application>().getSharedPreferences("source_${id}_updateTime:$seriesSlug", 0)
+        val currentTimeMillis = System.currentTimeMillis()
+    
+        // Obtener todos los valores de una vez para evitar múltiples accesos al disco
+        val existingTimestamps = mutableMapOf<String, Long>()
         val seriesPrefsEditor = seriesPrefs.edit()
+        var hasNewChapters = false
 
-        val chapterList = chapters.entries.flatMap { chapterEntry ->
-            val chapterNum = chapterEntry.key
-            val chapterObj = chapterEntry.value.jsonObject
-            val chapterGroups = chapterObj["groups"]!!.jsonObject
-            val volume = chapterObj["volume"]!!.jsonPrimitive.content.let {
-                if (volumeNotSpecifiedTerms.contains(it)) null else it
-            }
-            val title = chapterObj["title"]!!.jsonPrimitive.content
+    val chapterList = chapters.entries.asSequence().flatMap { chapterEntry ->
+        val chapterNum = chapterEntry.key
+        val chapterObj = chapterEntry.value.jsonObject
+        val chapterGroups = chapterObj["groups"]!!.jsonObject
+        val volume = chapterObj["volume"]!!.jsonPrimitive.content.let {
+            if (volumeNotSpecifiedTerms.contains(it)) null else it
+        }
+        val title = chapterObj["title"]!!.jsonPrimitive.content
 
-            chapterGroups.entries.map { groupEntry ->
+            chapterGroups.entries.asSequence().map { groupEntry ->
                 val groupNum = groupEntry.key
                 val releaseDate = chapterObj["release_date"]?.jsonObject?.get(groupNum)
 
@@ -301,15 +306,15 @@ open class Cubari(override val lang: String) : HttpSource() {
 
                     date_upload = if (releaseDate != null) {
                         releaseDate.jsonPrimitive.double.toLong() * 1000
+                } else {
+                    if (!seriesPrefs.contains(chapterNum)) {
+                        seriesPrefsEditor.putLong(chapterNum, currentTimeMillis)
+                        hasNewChapters = true
+                        currentTimeMillis
                     } else {
-                        val currentTimeMillis = System.currentTimeMillis()
-
-                        if (!seriesPrefs.contains(chapterNum)) {
-                            seriesPrefsEditor.putLong(chapterNum, currentTimeMillis)
-                        }
-
                         seriesPrefs.getLong(chapterNum, currentTimeMillis)
                     }
+                }
 
                     name = buildString {
                         if (!volume.isNullOrBlank()) append("Vol.$volume ")
@@ -321,12 +326,15 @@ open class Cubari(override val lang: String) : HttpSource() {
                         "${manga.url}/$chapterNum/$groupNum"
                     } else {
                         chapterGroups[groupNum]!!.jsonPrimitive.content
-                    }
                 }
             }
         }
+    }.toList()
 
+    // Solo aplicar cambios si hay capítulos nuevos
+    if (hasNewChapters) {
         seriesPrefsEditor.apply()
+    }
 
         return chapterList.sortedByDescending { it.chapter_number }
     }
