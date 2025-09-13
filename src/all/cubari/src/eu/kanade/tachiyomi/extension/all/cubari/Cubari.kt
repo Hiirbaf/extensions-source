@@ -264,9 +264,15 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     private fun searchMangaParse(response: Response, query: String): MangasPage {
         val result = json.parseToJsonElement(response.body.string()).jsonArray
+        val normalizedQuery = query.trim().lowercase()
+
         val filterList = result.asSequence()
-            .map { it as JsonObject }
-            .filter { it["title"].toString().contains(query.trim(), true) }
+            .mapNotNull { it as? JsonObject }
+            .filter { jsonObj ->
+                val title = jsonObj["title"]?.jsonPrimitive?.content?.lowercase() ?: ""
+                title.contains(normalizedQuery)
+            }
+            .take(50) // Limitar resultados para mejor rendimiento
             .toList()
         return parseMangaList(JsonArray(filterList), SortType.ALL)
     }
