@@ -266,6 +266,114 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     // (Los métodos parseMangaList, parseSearchList, parseManga, parseChapterList los dejas igual)
 
+    private fun parseChapterList(payload: String, manga: SManga): List<SChapter> {
+        val jsonObj = json.parseToJsonElement(payload).jsonObject
+        val groups = jsonObj["groups"]!!.jsonObject
+        val chapters = jsonObj["chapters"]!!.jsonObject
+        val seriesSlug = jsonObj["slug"]!!.jsonPrimitive.content
+
+        val seriesPrefs = Injekt.get<Application>().getSharedPreferences("source_${id}_updateTime:$seriesSlug", 0)
+        val seriesPrefsEditor = seriesPrefs.edit()
+
+        val chapterList = chapters.entries.flatMap { chapterEntry ->
+            val chapterNum = chapterEntry.key
+            val chapterObj = chapterEntry.value.jsonObject
+            val chapterGroups = chapterObj["groups"]!!.jsonObject
+            val volume = chapterObj["volume"]!!.jsonPrimitive.content.let {
+                if (volumeNotSpecifiedTerms.contains(it)) null else it
+            }
+            val title = chapterObj["title"]!!.jsonPrimitive.content
+
+            chapterGroups.entries.map { groupEntry ->
+                val groupNum = groupEntry.key
+                val releaseDate = chapterObj["release_date"]?.jsonObject?.get(groupNum)
+
+                SChapter.create().apply {
+                    scanlator = groups[groupNum]!!.jsonPrimitive.content
+                    chapter_number = chapterNum.toFloatOrNull() ?: -1f
+
+                    date_upload = if (releaseDate != null) {
+                        releaseDate.jsonPrimitive.double.toLong() * 1000
+                    } else {
+                        val currentTimeMillis = System.currentTimeMillis()
+
+                        if (!seriesPrefs.contains(chapterNum)) {
+                            seriesPrefsEditor.putLong(chapterNum, currentTimeMillis)
+                        }
+
+                        seriesPrefs.getLong(chapterNum, currentTimeMillis)
+                    }
+
+                    name = buildString {
+                        if (!volume.isNullOrBlank()) append("Vol.$volume ")
+                        append("Ch.$chapterNum")
+                        if (title.isNotBlank()) append(" - $title")
+                    }
+
+                    url = if (chapterGroups[groupNum] is JsonArray) {
+                        "${manga.url}/$chapterNum/$groupNum"
+                    } else {
+                        chapterGroups[groupNum]!!.jsonPrimitive.content
+                    }
+                }
+            }
+        }
+
+        seriesPrefsEditor.apply()
+
+        return chapterList.sortedByDescending { it.chapter_number }
+    }
+
+    private fun parseMangaList(payload: JsonArray, sortType: SortType): MangasPage {
+        val mangaList = payload.mapNotNull { jsonEl ->
+            val jsonObj = jsonEl.jsonObject
+            val pinned = jsonObj["pinned"]!!.jsonPrimitive.boolean
+
+            if (sortType == SortType.PINNED && pinned) {
+                parseManga(jsonObj)
+            } else if (sortType == SortType.UNPINNED && !pinned) {
+                parseManga(jsonObj)
+            } else if (sortType == SortType.ALL) {
+                parseManga(jsonObj)
+            } else {
+                null
+            }
+        }
+
+        return MangasPage(mangaList, false)
+    }
+
+    private fun parseSearchList(payload: JsonObject, query: String): MangasPage {
+        val tempManga = SManga.create().apply {
+            url = "/read/$query"
+        }
+
+        val mangaList = listOf(parseManga(payload, tempManga))
+
+        return MangasPage(mangaList, false)
+    }
+
+    private fun parseManga(jsonObj: JsonObject, mangaReference: SManga? = null): SManga =
+        SManga.create().apply {
+            title = jsonObj["title"]!!.jsonPrimitive.content
+            artist = jsonObj["artist"]?.jsonPrimitive?.content ?: ARTIST_FALLBACK
+            author = jsonObj["author"]?.jsonPrimitive?.content ?: AUTHOR_FALLBACK
+
+            val descriptionFull = jsonObj["description"]?.jsonPrimitive?.content
+            description = descriptionFull?.substringBefore("Tags: ") ?: DESCRIPTION_FALLBACK
+            genre = descriptionFull?.let {
+                if (it.contains("Tags: ")) {
+                    it.substringAfter("Tags: ")
+                } else {
+                    ""
+                }
+            } ?: ""
+
+            url = mangaReference?.url ?: jsonObj["url"]!!.jsonPrimitive.content
+            thumbnail_url = jsonObj["coverUrl"]?.jsonPrimitive?.content
+                ?: jsonObj["cover"]?.jsonPrimitive?.content ?: ""
+        }
+
     // ------------------- Stubs -------------------
 
     override fun imageUrlParse(response: Response): String {
