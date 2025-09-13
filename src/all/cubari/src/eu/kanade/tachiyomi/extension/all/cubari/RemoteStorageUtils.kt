@@ -22,7 +22,6 @@ class RemoteStorageUtils {
         private val handler = Handler(Looper.getMainLooper())
 
         abstract val jsScript: String
-
         abstract fun urlModifier(originalUrl: String): String
 
         internal class JsInterface(private val latch: CountDownLatch, var payload: String = "") {
@@ -35,10 +34,10 @@ class RemoteStorageUtils {
 
         @Synchronized
         override fun intercept(chain: Interceptor.Chain): Response {
-            try {
+            return try {
                 val originalRequest = chain.request()
                 val originalResponse = chain.proceed(originalRequest)
-                return proceedWithWebView(originalRequest, originalResponse)
+                proceedWithWebView(originalRequest, originalResponse)
             } catch (e: Exception) {
                 throw IOException(e)
             }
@@ -47,13 +46,10 @@ class RemoteStorageUtils {
         @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
         private fun proceedWithWebView(request: Request, response: Response): Response {
             val latch = CountDownLatch(1)
-
             var webView: WebView? = null
 
             val origRequestUrl = request.url.toString()
-            val headers = request.headers.toMultimap().mapValues {
-                it.value.getOrNull(0) ?: ""
-            }.toMutableMap()
+            val headers = request.headers.toMultimap().mapValues { it.value.getOrNull(0) ?: "" }.toMutableMap()
             val jsInterface = JsInterface(latch)
 
             handler.post {
@@ -65,11 +61,9 @@ class RemoteStorageUtils {
                     databaseEnabled = true
                     useWideViewPort = false
                     loadWithOverviewMode = false
-                    userAgentString = request.header("User-Agent")
                 }
 
                 webview.addJavascriptInterface(jsInterface, "android")
-
                 webview.webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, url: String) {
                         view.evaluateJavascript(jsScript) {}
@@ -84,16 +78,12 @@ class RemoteStorageUtils {
 
             latch.await(TIMEOUT_SEC, TimeUnit.SECONDS)
 
-            handler.postDelayed(
-                { webView?.destroy() },
-                DELAY_MILLIS * (if (transparent) 2 else 1),
-            )
+            handler.postDelayed({ webView?.destroy() }, DELAY_MILLIS * (if (transparent) 2 else 1))
 
-            return if (transparent) {
-                response
-            } else {
-                response.newBuilder().body(jsInterface.payload.toResponseBody(response.body.contentType())).build()
-            }
+            return if (transparent) response
+            else response.newBuilder()
+                .body(jsInterface.payload.toResponseBody(response.body.contentType()))
+                .build()
         }
     }
 
@@ -127,15 +117,13 @@ class RemoteStorageUtils {
                Promise.all(
                  [globalHistoryHandler.getAllPinnedSeries(), globalHistoryHandler.getAllUnpinnedSeries()]
                ).then(e => {
-                 window.android.passPayload(JSON.stringify(e.flatMap(e => e) ) )
+                 window.android.passPayload(JSON.stringify(e.flatMap(e => e)))
                });
              }
            })();
         """
 
-        override fun urlModifier(originalUrl: String): String {
-            return originalUrl
-        }
+        override fun urlModifier(originalUrl: String): String = originalUrl
     }
 
     companion object {
