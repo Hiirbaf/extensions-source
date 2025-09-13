@@ -162,7 +162,7 @@ class RemoteStorageUtils {
             // Cleanup con delay reducido
             handler.postDelayed({
                 webView?.let { returnWebView(it) }
-            }, DELAY_MILLIS / 2),
+            }, DELAY_MILLIS / 2)
 
             return if (transparent) {
                 response
