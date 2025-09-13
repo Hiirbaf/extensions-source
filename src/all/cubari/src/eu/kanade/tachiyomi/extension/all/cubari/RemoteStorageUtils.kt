@@ -32,9 +32,9 @@ class RemoteStorageUtils {
 
         data class CacheEntry(
             val response: String,
-            val timestamp: Long
+            val timestamp: Long,
         )
-        
+
         // Pool de WebViews para reutilización
         @Synchronized
         private fun getWebView(): WebView {
@@ -56,7 +56,7 @@ class RemoteStorageUtils {
                 }
             }
         }
-        
+
         @Synchronized
         private fun returnWebView(webView: WebView) {
             if (webViewPool.size < MAX_POOL_SIZE) {
@@ -68,7 +68,7 @@ class RemoteStorageUtils {
                 webView.destroy()
             }
         }
-        
+
         private fun getCachedResponse(url: String): String? {
             val entry = responseCache[url] ?: return null
             return if (System.currentTimeMillis() - entry.timestamp < CACHE_DURATION) {
@@ -78,10 +78,10 @@ class RemoteStorageUtils {
                 null
             }
         }
-        
+
         private fun cacheResponse(url: String, response: String) {
             responseCache[url] = CacheEntry(response, System.currentTimeMillis())
-            
+    
             // Limpiar cache antigua
             if (responseCache.size > 50) {
                 val cutoffTime = System.currentTimeMillis() - CACHE_DURATION
@@ -119,7 +119,7 @@ class RemoteStorageUtils {
                         .body(cachedResponse.toResponseBody(originalResponse.body.contentType()))
                         .build()
                 }
-                
+
                 proceedWithWebView(originalRequest, originalResponse)
             } catch (e: Exception) {
                 throw IOException(e)
@@ -147,7 +147,7 @@ class RemoteStorageUtils {
                                 latch.countDown()
                             }
                         }
-                        
+
                         override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
                             latch.countDown()
                         }
@@ -171,7 +171,7 @@ class RemoteStorageUtils {
                     // Cachear la respuesta
                     cacheResponse(modifiedUrl, jsInterface.payload)
                 }
-                
+
                 response.newBuilder()
                     .body(jsInterface.payload.toResponseBody(response.body.contentType()))
                     .build()
