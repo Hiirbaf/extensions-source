@@ -179,8 +179,8 @@ open class Cubari(override val lang: String) : HttpSource() {
         val jsonObj = json.parseToJsonElement(response.body.string()).jsonObject
         val groups = jsonObj["groups"]!!.jsonObject
         val groupMap = groups.entries.associateBy(
-            { it.value.jsonPrimitive.content.ifEmpty { "default" } }, 
-            { it.key }
+            { it.value.jsonPrimitive.content.ifEmpty { "default" } },
+            { it.key },
         )
         val chapterScanlator = chapter.scanlator ?: "default"
 
