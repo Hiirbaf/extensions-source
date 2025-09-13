@@ -306,15 +306,15 @@ open class Cubari(override val lang: String) : HttpSource() {
 
                     date_upload = if (releaseDate != null) {
                         releaseDate.jsonPrimitive.double.toLong() * 1000
-                } else {
-                    if (!seriesPrefs.contains(chapterNum)) {
-                        seriesPrefsEditor.putLong(chapterNum, currentTimeMillis)
-                        hasNewChapters = true
-                        currentTimeMillis
                     } else {
-                        seriesPrefs.getLong(chapterNum, currentTimeMillis)
+                        if (!seriesPrefs.contains(chapterNum)) {
+                            seriesPrefsEditor.putLong(chapterNum, currentTimeMillis)
+                            hasNewChapters = true
+                            currentTimeMillis
+                        } else {
+                           seriesPrefs.getLong(chapterNum, currentTimeMillis)
+                        }
                     }
-                }
 
                     name = buildString {
                         if (!volume.isNullOrBlank()) append("Vol.$volume ")
@@ -326,10 +326,10 @@ open class Cubari(override val lang: String) : HttpSource() {
                         "${manga.url}/$chapterNum/$groupNum"
                     } else {
                         chapterGroups[groupNum]!!.jsonPrimitive.content
+                    }
                 }
             }
-        }
-    }.toList()
+        }.toList()
 
     // Solo aplicar cambios si hay capítulos nuevos
     if (hasNewChapters) {
