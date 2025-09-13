@@ -19,17 +19,17 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class RemoteStorageUtils {
-    
+
     // Cache para evitar múltiples solicitudes WebView
     companion object {
         const val TIMEOUT_SEC: Long = 8 // Reducido de 10 a 8
         const val DELAY_MILLIS: Long = 5000 // Reducido de 10000 a 5000
         const val CACHE_DURATION = 5 * 60 * 1000L // 5 minutos
-        
+
         private val responseCache = ConcurrentHashMap<String, CacheEntry>()
         private val webViewPool = mutableListOf<WebView>()
         private const val MAX_POOL_SIZE = 2
-        
+
         data class CacheEntry(
             val response: String,
             val timestamp: Long
