@@ -59,13 +59,19 @@ class RemoteStorageUtils {
 
         @Synchronized
         private fun returnWebView(webView: WebView) {
-            if (webViewPool.size < MAX_POOL_SIZE) {
-                // Limpiar el WebView antes de devolverlo al pool
-                webView.clearHistory()
-                webView.clearCache(true)
-                webViewPool.add(webView)
-            } else {
-                webView.destroy()
+            try {
+                if (webViewPool.size < MAX_POOL_SIZE) {
+                    webView.clearHistory()
+                    webView.removeJavascriptInterface("android")
+                    webView.loadUrl("about:blank")
+                    webViewPool.add(webView)
+                } else {
+                    webView.destroy()
+                }
+            } catch (e: Exception) {
+                try {
+                    webView.destroy()
+                } catch (ignored: Exception) {}
             }
         }
 
