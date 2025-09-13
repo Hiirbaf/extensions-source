@@ -281,13 +281,13 @@ open class Cubari(override val lang: String) : HttpSource() {
 
         val seriesPrefs = Injekt.get<Application>().getSharedPreferences("source_${id}_updateTime:$seriesSlug", 0)
         val currentTimeMillis = System.currentTimeMillis()
-    
+
         // Obtener todos los valores de una vez para evitar múltiples accesos al disco
         val existingTimestamps = mutableMapOf<String, Long>()
         val seriesPrefsEditor = seriesPrefs.edit()
         var hasNewChapters = false
 
-    val chapterList = chapters.entries.asSequence().flatMap { chapterEntry ->
+        val chapterList = chapters.entries.asSequence().flatMap { chapterEntry ->
         val chapterNum = chapterEntry.key
         val chapterObj = chapterEntry.value.jsonObject
         val chapterGroups = chapterObj["groups"]!!.jsonObject
