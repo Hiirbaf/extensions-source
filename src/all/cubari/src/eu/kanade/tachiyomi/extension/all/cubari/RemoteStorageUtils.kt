@@ -80,8 +80,10 @@ class RemoteStorageUtils {
 
             handler.postDelayed({ webView?.destroy() }, DELAY_MILLIS * (if (transparent) 2 else 1))
 
-            return if (transparent) response
-            else response.newBuilder()
+            return if (transparent) {
+                response
+            } else {
+                response.newBuilder()
                 .body(jsInterface.payload.toResponseBody(response.body.contentType()))
                 .build()
         }
