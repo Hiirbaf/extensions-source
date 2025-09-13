@@ -217,12 +217,19 @@ open class Cubari(override val lang: String) : HttpSource() {
         return when {
             query.startsWith(PROXY_PREFIX) -> {
                 val trimmedQuery = query.removePrefix(PROXY_PREFIX)
-                client.newBuilder()
-                    .addInterceptor(RemoteStorageUtils.TagInterceptor())
-                    .build()
-                    .newCall(proxySearchRequest(trimmedQuery))
-                    .asObservableSuccess()
-                    .map { proxySearchParse(it, trimmedQuery) }
+                if (trimmedQuery.isBlank()) {
+                    Observable.just(MangasPage(emptyList(), false))
+                } else {
+                    client.newBuilder()
+                        .addInterceptor(RemoteStorageUtils.TagInterceptor())
+                        .build()
+                        .newCall(proxySearchRequest(trimmedQuery))
+                        .asObservableSuccess()
+                        .map { proxySearchParse(it, trimmedQuery) }
+                }
+            }
+            query.isBlank() -> {
+                Observable.just(MangasPage(emptyList(), false))
             }
             else -> {
                 client.newBuilder()
@@ -232,7 +239,9 @@ open class Cubari(override val lang: String) : HttpSource() {
                     .asObservableSuccess()
                     .map { searchMangaParse(it, query) }
                     .map { mangasPage ->
-                        require(mangasPage.mangas.isNotEmpty()) { SEARCH_FALLBACK_MSG }
+                        if (mangasPage.mangas.isEmpty()) {
+                            throw Exception(SEARCH_FALLBACK_MSG)
+                        }
                         mangasPage
                     }
             }
