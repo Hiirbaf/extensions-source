@@ -178,24 +178,28 @@ open class Cubari(override val lang: String) : HttpSource() {
     private fun seriesJsonPageListParse(response: Response, chapter: SChapter): List<Page> {
         val jsonObj = json.parseToJsonElement(response.body.string()).jsonObject
         val groups = jsonObj["groups"]!!.jsonObject
-        val groupMap = groups.entries.associateBy({ it.value.jsonPrimitive.content.ifEmpty { "default" } }, { it.key })
+        val groupMap = groups.entries.associateBy(
+            { it.value.jsonPrimitive.content.ifEmpty { "default" } }, 
+            { it.key }
+        )
         val chapterScanlator = chapter.scanlator ?: "default"
 
-        val chapters = jsonObj["chapters"]!!.jsonObject.mapKeys {
-            it.key.replace(Regex("^0+(?!$)"), "")
+        val chapters = jsonObj["chapters"]!!.jsonObject.let { chaptersObj ->
+            // Crear mapa normalizado una sola vez
+            chaptersObj.entries.associateBy(
+                { it.key.replace(Regex("^0+(?!$)"), "") },
+                { it.value }
+            )
         }
 
-        val pages = if (chapters[chapter.chapter_number.toString()] != null) {
-            chapters[chapter.chapter_number.toString()]!!
-                .jsonObject["groups"]!!
-                .jsonObject[groupMap[chapterScanlator]]!!
-                .jsonArray
-        } else {
-            chapters[chapter.chapter_number.toInt().toString()]!!
-                .jsonObject["groups"]!!
-                .jsonObject[groupMap[chapterScanlator]]!!
-                .jsonArray
-        }
+        val chapterKey = chapter.chapter_number.toString()
+        val chapterData = chapters[chapterKey] ?: chapters[chapter.chapter_number.toInt().toString()]
+
+        val pages = chapterData
+            ?.jsonObject?.get("groups")
+            ?.jsonObject?.get(groupMap[chapterScanlator])
+            ?.jsonArray
+            ?: return emptyList()
 
         return pages.mapIndexed { i, jsonEl ->
             val page = if (jsonEl is JsonObject) {
