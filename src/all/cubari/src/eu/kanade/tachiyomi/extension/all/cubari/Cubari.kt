@@ -288,13 +288,13 @@ open class Cubari(override val lang: String) : HttpSource() {
         var hasNewChapters = false
 
         val chapterList = chapters.entries.asSequence().flatMap { chapterEntry ->
-        val chapterNum = chapterEntry.key
-        val chapterObj = chapterEntry.value.jsonObject
-        val chapterGroups = chapterObj["groups"]!!.jsonObject
-        val volume = chapterObj["volume"]!!.jsonPrimitive.content.let {
-            if (volumeNotSpecifiedTerms.contains(it)) null else it
-        }
-        val title = chapterObj["title"]!!.jsonPrimitive.content
+            val chapterNum = chapterEntry.key
+            val chapterObj = chapterEntry.value.jsonObject
+            val chapterGroups = chapterObj["groups"]!!.jsonObject
+            val volume = chapterObj["volume"]!!.jsonPrimitive.content.let {
+                if (volumeNotSpecifiedTerms.contains(it)) null else it
+            }
+            val title = chapterObj["title"]!!.jsonPrimitive.content
 
             chapterGroups.entries.asSequence().map { groupEntry ->
                 val groupNum = groupEntry.key
