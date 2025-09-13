@@ -85,7 +85,12 @@ class RemoteStorageUtils {
             // Limpiar cache antigua
             if (responseCache.size > 50) {
                 val cutoffTime = System.currentTimeMillis() - CACHE_DURATION
-                responseCache.entries.removeAll { it.value.timestamp < cutoffTime }
+                val iterator = responseCache.entries.iterator()
+                while (iterator.hasNext()) {
+                    if (iterator.next().value.timestamp < cutoffTime) {
+                        iterator.remove()
+                    }
+                }
             }
         }
     }
