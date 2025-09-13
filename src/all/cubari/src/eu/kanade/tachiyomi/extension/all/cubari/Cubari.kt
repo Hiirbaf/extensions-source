@@ -312,7 +312,7 @@ open class Cubari(override val lang: String) : HttpSource() {
                             hasNewChapters = true
                             currentTimeMillis
                         } else {
-                           seriesPrefs.getLong(chapterNum, currentTimeMillis)
+                            seriesPrefs.getLong(chapterNum, currentTimeMillis)
                         }
                     }
 
@@ -331,10 +331,10 @@ open class Cubari(override val lang: String) : HttpSource() {
             }
         }.toList()
 
-    // Solo aplicar cambios si hay capítulos nuevos
-    if (hasNewChapters) {
-        seriesPrefsEditor.apply()
-    }
+        // Solo aplicar cambios si hay capítulos nuevos
+        if (hasNewChapters) {
+            seriesPrefsEditor.apply()
+        }
 
         return chapterList.sortedByDescending { it.chapter_number }
     }
