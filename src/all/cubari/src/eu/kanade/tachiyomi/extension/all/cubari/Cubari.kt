@@ -188,7 +188,7 @@ open class Cubari(override val lang: String) : HttpSource() {
             // Crear mapa normalizado una sola vez
             chaptersObj.entries.associateBy(
                 { it.key.replace(Regex("^0+(?!$)"), "") },
-                { it.value }
+                { it.value },
             )
         }
 
