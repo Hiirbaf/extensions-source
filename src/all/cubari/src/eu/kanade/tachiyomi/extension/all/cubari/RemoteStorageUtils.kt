@@ -81,7 +81,7 @@ class RemoteStorageUtils {
 
         private fun cacheResponse(url: String, response: String) {
             responseCache[url] = CacheEntry(response, System.currentTimeMillis())
-    
+
             // Limpiar cache antigua
             if (responseCache.size > 50) {
                 val cutoffTime = System.currentTimeMillis() - CACHE_DURATION
@@ -109,11 +109,11 @@ class RemoteStorageUtils {
             return try {
                 val originalRequest = chain.request()
                 val originalResponse = chain.proceed(originalRequest)
-                
+
                 // Verificar cache primero
                 val modifiedUrl = urlModifier(originalRequest.url.toString())
                 val cachedResponse = getCachedResponse(modifiedUrl)
-                
+
                 if (cachedResponse != null && !transparent) {
                     return originalResponse.newBuilder()
                         .body(cachedResponse.toResponseBody(originalResponse.body.contentType()))
@@ -188,7 +188,7 @@ class RemoteStorageUtils {
                    window.android.passPayload('[]');
                }
            }, 3000);
-           
+
            window.addEventListener('history-ready', function () {
              if (!dispatched) {
                clearTimeout(timeoutId);
