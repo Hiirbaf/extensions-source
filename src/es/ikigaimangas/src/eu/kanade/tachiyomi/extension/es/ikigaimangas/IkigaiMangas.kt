@@ -6,6 +6,8 @@ import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.lib.cookieinterceptor.CookieInterceptor
+import eu.kanade.tachiyomi.lib.randomua.UserAgentType
+import eu.kanade.tachiyomi.lib.randomua.setRandomUserAgent
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -21,6 +23,7 @@ import keiyoushi.utils.getPreferences
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
@@ -74,12 +77,31 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
         ),
     )
 
+    // Cliente HTTP adaptado con Cloudflare, User-Agent aleatorio y captcha interceptor
     override val client by lazy {
         network.cloudflareClient.newBuilder()
+            .setRandomUserAgent(
+                userAgentType = UserAgentType.MOBILE,
+                filterInclude = listOf("chrome")
+            )
             .rateLimitHost(fetchedDomainUrl.toHttpUrl(), 1, 2)
             .rateLimitHost(apiBaseUrl.toHttpUrl(), 2, 1)
             .addNetworkInterceptor(cookieInterceptor)
+            .addNetworkInterceptor(::captchaInterceptor)
             .build()
+    }
+
+    // Interceptor para detectar captchas de Cloudflare
+    private fun captchaInterceptor(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val response = chain.proceed(request)
+
+        val location = response.header("Location")
+        if (location?.contains("/Special/AreYouHuman") == true) {
+            throw Exception("Cloudflare captcha detected. Solve it in WebView")
+        }
+
+        return response
     }
 
     private val preferences: SharedPreferences = getPreferences()
@@ -268,7 +290,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
             }
         }
     }
-
+    // --- Preferencias
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         SwitchPreferenceCompat(screen.context).apply {
             key = SHOW_NSFW_PREF
