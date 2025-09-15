@@ -82,7 +82,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
         network.cloudflareClient.newBuilder()
             .setRandomUserAgent(
                 userAgentType = UserAgentType.MOBILE,
-                filterInclude = listOf("chrome")
+                filterInclude = listOf("chrome"),
             )
             .rateLimitHost(fetchedDomainUrl.toHttpUrl(), 1, 2)
             .rateLimitHost(apiBaseUrl.toHttpUrl(), 2, 1)
@@ -290,7 +290,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
             }
         }
     }
-    // --- Preferencias
+    // ---Preferencias
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         SwitchPreferenceCompat(screen.context).apply {
             key = SHOW_NSFW_PREF
