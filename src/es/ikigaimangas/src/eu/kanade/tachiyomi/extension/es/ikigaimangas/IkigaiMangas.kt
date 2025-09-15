@@ -290,6 +290,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
             }
         }
     }
+
     // ---Preferencias
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         SwitchPreferenceCompat(screen.context).apply {
