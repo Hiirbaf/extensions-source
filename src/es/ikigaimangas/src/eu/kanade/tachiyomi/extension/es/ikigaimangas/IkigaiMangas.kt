@@ -269,7 +269,8 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
                         }
                     }
                 }
-            },)
+            },
+        )
     }
 
     // -----------------------------
