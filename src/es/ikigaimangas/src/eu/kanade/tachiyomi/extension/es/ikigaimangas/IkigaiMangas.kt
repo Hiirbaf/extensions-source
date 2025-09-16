@@ -6,8 +6,6 @@ import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.lib.cookieinterceptor.CookieInterceptor
-import eu.kanade.tachiyomi.lib.randomua.UserAgentType
-import eu.kanade.tachiyomi.lib.randomua.setRandomUserAgent
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -22,161 +20,121 @@ import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferences
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import okhttp3.Headers
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
-import java.text.SimpleDateFormat
+import java.io.IOException
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.util.TimeZone
-import kotlin.concurrent.thread
 
 class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     private val isCi = System.getenv("CI") == "true"
 
-    override val baseUrl get() = when {
-        isCi -> defaultBaseUrl
-        else -> preferences.prefBaseUrl
-    }
+    override val baseUrl: String
+        get() = if (isCi) defaultBaseUrl else preferences.prefBaseUrl
 
-    private val defaultBaseUrl: String = "https://ikigaitoon.bookir.net"
+    private val defaultBaseUrl = "https://ikigaitoon.bookir.net"
+    private val apiBaseUrl = "https://panel.ikigaimangas.com"
 
-    private val fetchedDomainUrl: String by lazy {
-        if (!preferences.fetchDomainPref()) return@lazy preferences.prefBaseUrl
-        try {
-            val initClient = network.cloudflareClient
-            val headers = super.headersBuilder().build()
-            val document = initClient.newCall(GET("https://ikigaimangas.com", headers)).execute().asJsoup()
-            val scriptUrl = document.selectFirst("div[on:click]:containsOwn(Nuevo dominio)")?.attr("on:click")
-                ?: return@lazy preferences.prefBaseUrl
-            val script = initClient.newCall(GET("https://ikigaimangas.com/build/$scriptUrl", headers)).execute().body.string()
-            val domain = script.substringAfter("window.open(\"").substringBefore("\"")
-            val host = initClient.newCall(GET(domain, headers)).execute().request.url.host
-            val newDomain = "https://$host"
-            preferences.prefBaseUrl = newDomain
-            newDomain
-        } catch (e: Exception) {
-            preferences.prefBaseUrl
-        }
-    }
-
-    private val apiBaseUrl: String = "https://panel.ikigaimangas.com"
-
-    override val lang: String = "es"
-
-    override val name: String = "Ikigai Mangas"
-
-    override val supportsLatest: Boolean = true
-
-    private val cookieInterceptor = CookieInterceptor(
-        "",
-        listOf(
-            "nsfw-mode" to "true",
-        ),
-    )
-
-    override fun headersBuilder(): Headers.Builder = super.headersBuilder()
-        .set(
-            "User-Agent",
-            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
-        )
-        .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-        .set("Accept-Language", "es-ES,es;q=0.9")
-        .set("Referer", baseUrl)
-        .set("Connection", "keep-alive")
-
-    // Cliente HTTP adaptado con Cloudflare, User-Agent aleatorio y captcha interceptor
-    override val client by lazy {
-        network.cloudflareClient.newBuilder()
-            .setRandomUserAgent(
-                userAgentType = UserAgentType.MOBILE,
-                filterInclude = listOf("chrome"),
-            )
-            .rateLimitHost(fetchedDomainUrl.toHttpUrl(), 1, 2)
-            .rateLimitHost(apiBaseUrl.toHttpUrl(), 2, 1)
-            .addNetworkInterceptor(cookieInterceptor)
-            .addNetworkInterceptor(::captchaInterceptor)
-            .build()
-    }
-
-    // Interceptor para detectar captchas de Cloudflare
-    private fun captchaInterceptor(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        val response = chain.proceed(request)
-
-        val location = response.header("Location")
-        if (location?.contains("/Special/AreYouHuman") == true) {
-            throw Exception("Cloudflare captcha detected. Solve it in WebView")
-        }
-
-        return response
-    }
+    override val lang = "es"
+    override val name = "Ikigai Mangas"
+    override val supportsLatest = true
 
     private val preferences: SharedPreferences = getPreferences()
 
-    private val lazyHeaders by lazy { headersBuilder().build() }
+    private val cookieInterceptor = CookieInterceptor(
+        "",
+        listOf("nsfw-mode" to "true"),
+    )
+
+    override val client by lazy {
+        network.cloudflareClient.newBuilder()
+            .rateLimitHost(baseDomainUrl.toHttpUrl(), 1, 2)
+            .rateLimitHost(apiBaseUrl.toHttpUrl(), 2, 1)
+            .addNetworkInterceptor(cookieInterceptor)
+            .build()
+    }
+
+    private val lazyHeaders by lazy {
+        headersBuilder()
+            .set("Referer", baseDomainUrl)
+            .build()
+    }
 
     private val json: Json by injectLazy()
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
+    private val dateFormat: DateTimeFormatter =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
+            .withZone(ZoneOffset.UTC)
+
+    /**
+     * Base domain con fallback al default.
+     */
+    private val baseDomainUrl: String
+        get() = preferences.prefBaseUrl.ifEmpty { defaultBaseUrl }
+
+    // -----------------------------
+    // Requests
+    // -----------------------------
 
     override fun popularMangaRequest(page: Int): Request {
         val apiUrl = "$apiBaseUrl/api/swf/series/ranking-list".toHttpUrl().newBuilder()
             .addQueryParameter("type", "total_ranking")
             .addQueryParameter("series_type", "comic")
-            .addQueryParameter("nsfw", if (preferences.showNsfwPref) "true" else "false")
+            .addQueryParameter("nsfw", preferences.showNsfwPref.toString())
+            .build()
 
-        return GET(apiUrl.build(), lazyHeaders)
+        return GET(apiUrl, lazyHeaders)
     }
 
-    override fun popularMangaParse(response: Response): MangasPage {
-        val result = json.decodeFromString<PayloadSeriesDto>(response.body.string())
-        val mangaList = result.data.map { it.toSManga() }
-        return MangasPage(mangaList, false)
+    override fun popularMangaParse(response: Response): MangasPage = response.use {
+        val result = json.decodeFromString<PayloadSeriesDto>(it.body.string())
+        val mangaList = result.data.map { dto -> dto.toSManga() }
+        MangasPage(mangaList, false)
     }
 
     override fun latestUpdatesRequest(page: Int): Request {
         val apiUrl = "$apiBaseUrl/api/swf/new-chapters".toHttpUrl().newBuilder()
-            .addQueryParameter("nsfw", if (preferences.showNsfwPref) "true" else "false")
+            .addQueryParameter("nsfw", preferences.showNsfwPref.toString())
             .addQueryParameter("page", page.toString())
+            .build()
 
-        return GET(apiUrl.build(), lazyHeaders)
+        return GET(apiUrl, lazyHeaders)
     }
 
-    override fun latestUpdatesParse(response: Response): MangasPage {
-        val result = json.decodeFromString<PayloadLatestDto>(response.body.string())
-        val mangaList = result.data.filter { it.type == "comic" }.map { it.toSManga() }
-        return MangasPage(mangaList, result.hasNextPage())
+    override fun latestUpdatesParse(response: Response): MangasPage = response.use {
+        val result = json.decodeFromString<PayloadLatestDto>(it.body.string())
+        val mangaList = result.data.filter { dto -> dto.type == "comic" }.map { it.toSManga() }
+        MangasPage(mangaList, result.hasNextPage())
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val sortByFilter = filters.firstInstanceOrNull<SortByFilter>()
-
         val apiUrl = "$apiBaseUrl/api/swf/series".toHttpUrl().newBuilder()
+            .addQueryParameter("page", page.toString())
+            .addQueryParameter("type", "comic")
+            .addQueryParameter("nsfw", preferences.showNsfwPref.toString())
 
         if (query.isNotEmpty()) apiUrl.addQueryParameter("search", query)
 
-        apiUrl.addQueryParameter("page", page.toString())
-        apiUrl.addQueryParameter("type", "comic")
-        apiUrl.addQueryParameter("nsfw", if (preferences.showNsfwPref) "true" else "false")
-
-        val genres = filters.firstInstanceOrNull<GenreFilter>()?.state.orEmpty()
+        filters.firstInstanceOrNull<GenreFilter>()?.state.orEmpty()
             .filter(Genre::state)
             .map(Genre::id)
-            .joinToString(",")
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(",")
+            ?.let { apiUrl.addQueryParameter("genres", it) }
 
-        val statuses = filters.firstInstanceOrNull<StatusFilter>()?.state.orEmpty()
+        filters.firstInstanceOrNull<StatusFilter>()?.state.orEmpty()
             .filter(Status::state)
             .map(Status::id)
-            .joinToString(",")
-
-        if (genres.isNotEmpty()) apiUrl.addQueryParameter("genres", genres)
-        if (statuses.isNotEmpty()) apiUrl.addQueryParameter("status", statuses)
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(",")
+            ?.let { apiUrl.addQueryParameter("status", it) }
 
         apiUrl.addQueryParameter("column", sortByFilter?.selected ?: "name")
         apiUrl.addQueryParameter("direction", if (sortByFilter?.state?.ascending == true) "asc" else "desc")
@@ -184,28 +142,27 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
         return GET(apiUrl.build(), lazyHeaders)
     }
 
-    override fun searchMangaParse(response: Response): MangasPage {
-        val result = json.decodeFromString<PayloadSeriesDto>(response.body.string())
-        val mangaList = result.data.filter { it.type == "comic" }.map { it.toSManga() }
-        return MangasPage(mangaList, result.hasNextPage())
+    override fun searchMangaParse(response: Response): MangasPage = response.use {
+        val result = json.decodeFromString<PayloadSeriesDto>(it.body.string())
+        val mangaList = result.data.filter { dto -> dto.type == "comic" }.map { it.toSManga() }
+        MangasPage(mangaList, result.hasNextPage())
     }
 
-    override fun getMangaUrl(manga: SManga) = preferences.prefBaseUrl + manga.url.substringBefore("#").replace("/series/comic-", "/series/")
+    override fun getMangaUrl(manga: SManga): String =
+        baseDomainUrl + manga.url.substringBefore("#").replace("/series/comic-", "/series/")
 
     override fun mangaDetailsRequest(manga: SManga): Request {
-        val slug = manga.url
-            .substringAfter("/series/comic-")
-            .substringBefore("#")
-
+        val slug = manga.url.substringAfter("/series/comic-").substringBefore("#")
         return GET("$apiBaseUrl/api/swf/series/$slug", lazyHeaders)
     }
 
-    override fun mangaDetailsParse(response: Response): SManga {
-        val result = json.decodeFromString<PayloadSeriesDetailsDto>(response.body.string())
-        return result.series.toSMangaDetails()
+    override fun mangaDetailsParse(response: Response): SManga = response.use {
+        val result = json.decodeFromString<PayloadSeriesDetailsDto>(it.body.string())
+        result.series.toSMangaDetails()
     }
 
-    override fun getChapterUrl(chapter: SChapter) = preferences.prefBaseUrl + chapter.url.substringBefore("#")
+    override fun getChapterUrl(chapter: SChapter): String =
+        baseDomainUrl + chapter.url.substringBefore("#")
 
     override fun chapterListRequest(manga: SManga): Request {
         val slug = manga.url.substringAfter("/series/comic-").substringBefore("#")
@@ -216,37 +173,54 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
         val slug = response.request.url.toString()
             .substringAfter("/series/")
             .substringBefore("/chapters")
-        var result = json.decodeFromString<PayloadChaptersDto>(response.body.string())
-        val mangas = mutableListOf<SChapter>()
-        mangas.addAll(result.data.map { it.toSChapter(dateFormat) })
-        var page = 2
-        while (result.meta.hasNextPage()) {
-            val newResponse = client.newCall(GET("$apiBaseUrl/api/swf/series/$slug/chapters?page=$page", lazyHeaders)).execute()
-            result = json.decodeFromString<PayloadChaptersDto>(newResponse.body.string())
-            mangas.addAll(result.data.map { it.toSChapter(dateFormat) })
+
+        val chapters = mutableListOf<SChapter>()
+        var page = 1
+        var hasNext: Boolean
+
+        do {
+            val res = client.newCall(
+                GET("$apiBaseUrl/api/swf/series/$slug/chapters?page=$page", lazyHeaders)
+            ).execute()
+
+            res.use {
+                val result = json.decodeFromString<PayloadChaptersDto>(it.body.string())
+                chapters += result.data.map { dto -> dto.toSChapter(dateFormat) }
+                hasNext = result.meta.hasNextPage()
+            }
+
             page++
-        }
-        return mangas
+        } while (hasNext)
+
+        return chapters
     }
 
     override fun pageListRequest(chapter: SChapter): Request =
-        GET(fetchedDomainUrl + chapter.url.substringBefore("#"), lazyHeaders)
+        GET(baseDomainUrl + chapter.url.substringBefore("#"), lazyHeaders)
 
-    override fun pageListParse(response: Response): List<Page> {
-        val document = response.asJsoup()
-        return document.select("section div.img > img").mapIndexed { i, element ->
+    override fun pageListParse(response: Response): List<Page> = response.use {
+        val document = it.asJsoup()
+        document.select("section div.img > img").mapIndexed { i, element ->
             Page(i, imageUrl = element.attr("abs:src"))
         }
     }
 
-    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response): String =
+        throw UnsupportedOperationException()
+
+    // -----------------------------
+    // Filtros
+    // -----------------------------
+
+    private var genresList: List<Pair<String, Long>> = emptyList()
+    private var statusesList: List<Pair<String, Long>> = emptyList()
+    private var fetchFiltersAttempts = 0
+    private var filtersState = FiltersState.NOT_FETCHED
 
     override fun getFilterList(): FilterList {
         fetchFilters()
 
-        val filters = mutableListOf<Filter<*>>(
-            SortByFilter("Ordenar por", getSortProperties()),
-        )
+        val filters = mutableListOf<Filter<*>>(SortByFilter("Ordenar por", getSortProperties()))
 
         filters += if (filtersState == FiltersState.FETCHED) {
             listOf(
@@ -254,9 +228,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
                 GenreFilter("Géneros", getGenreFilters()),
             )
         } else {
-            listOf(
-                Filter.Header("Presione 'Restablecer' para intentar cargar los filtros"),
-            )
+            listOf(Filter.Header("Presione 'Restablecer' para intentar cargar los filtros"))
         }
 
         return FilterList(filters)
@@ -274,31 +246,36 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
     private fun getGenreFilters(): List<Genre> = genresList.map { Genre(it.first, it.second) }
     private fun getStatusFilters(): List<Status> = statusesList.map { Status(it.first, it.second) }
 
-    private var genresList: List<Pair<String, Long>> = emptyList()
-    private var statusesList: List<Pair<String, Long>> = emptyList()
-    private var fetchFiltersAttempts = 0
-    private var filtersState = FiltersState.NOT_FETCHED
-
     private fun fetchFilters() {
         if (filtersState != FiltersState.NOT_FETCHED || fetchFiltersAttempts >= 3) return
         filtersState = FiltersState.FETCHING
         fetchFiltersAttempts++
-        thread {
-            try {
-                val response = client.newCall(GET("$apiBaseUrl/api/swf/filter-options", lazyHeaders)).execute()
-                val filters = json.decodeFromString<PayloadFiltersDto>(response.body.string())
 
-                genresList = filters.data.genres.map { it.name.trim() to it.id }
-                statusesList = filters.data.statuses.map { it.name.trim() to it.id }
+        client.newCall(GET("$apiBaseUrl/api/swf/filter-options", lazyHeaders))
+            .enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    filtersState = FiltersState.NOT_FETCHED
+                }
 
-                filtersState = FiltersState.FETCHED
-            } catch (e: Throwable) {
-                filtersState = FiltersState.NOT_FETCHED
-            }
-        }
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        try {
+                            val filters = json.decodeFromString<PayloadFiltersDto>(it.body.string())
+                            genresList = filters.data.genres.map { g -> g.name.trim() to g.id }
+                            statusesList = filters.data.statuses.map { s -> s.name.trim() to s.id }
+                            filtersState = FiltersState.FETCHED
+                        } catch (_: Throwable) {
+                            filtersState = FiltersState.NOT_FETCHED
+                        }
+                    }
+                }
+            })
     }
 
-    // ---Preferencias
+    // -----------------------------
+    // Preferencias
+    // -----------------------------
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         SwitchPreferenceCompat(screen.context).apply {
             key = SHOW_NSFW_PREF
@@ -331,13 +308,14 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
         }.also { screen.addPreference(it) }
     }
 
-    private fun SharedPreferences.fetchDomainPref() = getBoolean(FETCH_DOMAIN_PREF, FETCH_DOMAIN_PREF_DEFAULT)
+    private fun SharedPreferences.fetchDomainPref() =
+        getBoolean(FETCH_DOMAIN_PREF, FETCH_DOMAIN_PREF_DEFAULT)
 
     private var _cachedBaseUrl: String? = null
     private var SharedPreferences.prefBaseUrl: String
         get() {
             if (_cachedBaseUrl == null) {
-                _cachedBaseUrl = getString(BASE_URL_PREF, defaultBaseUrl)!!
+                _cachedBaseUrl = getString(BASE_URL_PREF, defaultBaseUrl) ?: defaultBaseUrl
             }
             return _cachedBaseUrl!!
         }
@@ -371,13 +349,15 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
         private const val BASE_URL_PREF = "overrideBaseUrl"
         private const val BASE_URL_PREF_TITLE = "Editar URL de la fuente"
-        private const val BASE_URL_PREF_SUMMARY = "Para uso temporal, si la extensión se actualiza se perderá el cambio."
+        private const val BASE_URL_PREF_SUMMARY =
+            "Para uso temporal, si la extensión se actualiza se perderá el cambio."
         private const val DEFAULT_BASE_URL_PREF = "defaultBaseUrl"
         private const val RESTART_APP_MESSAGE = "Reinicie la aplicación para aplicar los cambios"
 
         private const val FETCH_DOMAIN_PREF = "fetchDomain"
         private const val FETCH_DOMAIN_PREF_TITLE = "Buscar dominio automáticamente"
-        private const val FETCH_DOMAIN_PREF_SUMMARY = "Intenta buscar el dominio automáticamente al abrir la fuente."
+        private const val FETCH_DOMAIN_PREF_SUMMARY =
+            "Intenta buscar el dominio automáticamente al abrir la fuente."
         private const val FETCH_DOMAIN_PREF_DEFAULT = true
     }
 
