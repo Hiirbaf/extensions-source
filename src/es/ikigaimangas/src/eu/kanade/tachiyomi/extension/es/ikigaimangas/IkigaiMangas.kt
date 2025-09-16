@@ -27,9 +27,10 @@ import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
 import java.io.IOException
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.TimeZone
+import kotlin.concurrent.thread
 
 class IkigaiMangas : HttpSource(), ConfigurableSource {
 
@@ -68,18 +69,18 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     private val json: Json by injectLazy()
 
-    private val dateFormat: DateTimeFormatter =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.US)
-            .withZone(ZoneOffset.UTC)
+    private val dateFormat = SimpleDateFormat(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+        Locale.US
+    ).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
 
-    /**
-     * Base domain con fallback al default.
-     */
     private val baseDomainUrl: String
         get() = preferences.prefBaseUrl.ifEmpty { defaultBaseUrl }
 
     // -----------------------------
-    // Requests
+    // Requests y Parseos
     // -----------------------------
 
     override fun popularMangaRequest(page: Int): Request {
@@ -109,7 +110,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     override fun latestUpdatesParse(response: Response): MangasPage = response.use {
         val result = json.decodeFromString<PayloadLatestDto>(it.body.string())
-        val mangaList = result.data.filter { dto -> dto.type == "comic" }.map { it.toSManga() }
+        val mangaList = result.data.filter { it.type == "comic" }.map { it.toSManga() }
         MangasPage(mangaList, result.hasNextPage())
     }
 
@@ -144,7 +145,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     override fun searchMangaParse(response: Response): MangasPage = response.use {
         val result = json.decodeFromString<PayloadSeriesDto>(it.body.string())
-        val mangaList = result.data.filter { dto -> dto.type == "comic" }.map { it.toSManga() }
+        val mangaList = result.data.filter { it.type == "comic" }.map { it.toSManga() }
         MangasPage(mangaList, result.hasNextPage())
     }
 
@@ -180,7 +181,10 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
         do {
             val res = client.newCall(
-                GET("$apiBaseUrl/api/swf/series/$slug/chapters?page=$page", lazyHeaders),
+                GET(
+                    "$apiBaseUrl/api/swf/series/$slug/chapters?page=$page",
+                    lazyHeaders,
+                ),
             ).execute()
 
             res.use {
