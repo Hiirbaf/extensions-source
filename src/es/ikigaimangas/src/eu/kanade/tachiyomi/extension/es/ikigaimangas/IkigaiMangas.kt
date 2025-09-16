@@ -260,7 +260,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
             .enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     filtersState = FiltersState.NOT_FETCHED
-                    }
+                }
 
                 override fun onResponse(call: Call, response: Response) {
                     response.use {
