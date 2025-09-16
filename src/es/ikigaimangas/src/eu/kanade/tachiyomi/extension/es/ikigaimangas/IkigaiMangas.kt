@@ -80,7 +80,8 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .set(
             "User-Agent",
-            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36")
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
+        )
         .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
         .set("Accept-Language", "es-ES,es;q=0.9")
         .set("Referer", baseUrl)
