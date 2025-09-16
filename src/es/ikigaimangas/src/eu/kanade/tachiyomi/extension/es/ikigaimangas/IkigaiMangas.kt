@@ -251,8 +251,12 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
         filtersState = FiltersState.FETCHING
         fetchFiltersAttempts++
 
-        client.newCall(GET("$apiBaseUrl/api/swf/filter-options", lazyHeaders))
-            .enqueue(object : Callback {
+        client.newCall(
+            GET(
+                "$apiBaseUrl/api/swf/filter-options",
+                lazyHeaders,
+            ),
+        ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     filtersState = FiltersState.NOT_FETCHED
                 }
