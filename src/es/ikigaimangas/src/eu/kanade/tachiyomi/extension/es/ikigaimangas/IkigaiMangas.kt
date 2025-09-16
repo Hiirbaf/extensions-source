@@ -30,7 +30,6 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.concurrent.thread
 
 class IkigaiMangas : HttpSource(), ConfigurableSource {
 
@@ -71,7 +70,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
     private val dateFormat = SimpleDateFormat(
         "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
-        Locale.US
+        Locale.US,
     ).apply {
         timeZone = TimeZone.getTimeZone("UTC")
     }
