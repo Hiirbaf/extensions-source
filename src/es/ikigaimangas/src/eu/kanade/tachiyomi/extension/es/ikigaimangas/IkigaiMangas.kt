@@ -256,25 +256,26 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
                 "$apiBaseUrl/api/swf/filter-options",
                 lazyHeaders,
             ),
-        ).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                filtersState = FiltersState.NOT_FETCHED
-            }
+        )
+            .enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    filtersState = FiltersState.NOT_FETCHED
+                    }
 
-            override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    try {
-                        val filters = json.decodeFromString<PayloadFiltersDto>(it.body.string())
-                        genresList = filters.data.genres.map { g -> g.name.trim() to g.id }
-                        statusesList = filters.data.statuses.map { s -> s.name.trim() to s.id }
-                        filtersState = FiltersState.FETCHED
-                    } catch (_: Throwable) {
-                        filtersState = FiltersState.NOT_FETCHED
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        try {
+                            val filters = json.decodeFromString<PayloadFiltersDto>(it.body.string())
+                            genresList = filters.data.genres.map { g -> g.name.trim() to g.id }
+                            statusesList = filters.data.statuses.map { s -> s.name.trim() to s.id }
+                            filtersState = FiltersState.FETCHED
+                        } catch (_: Throwable) {
+                            filtersState = FiltersState.NOT_FETCHED
+                        }
                     }
                 }
-            }
-        },
-        )
+            },
+            )
     }
 
     // -----------------------------
