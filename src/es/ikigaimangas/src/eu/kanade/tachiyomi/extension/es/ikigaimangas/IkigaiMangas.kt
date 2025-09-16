@@ -180,7 +180,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
         do {
             val res = client.newCall(
-                GET("$apiBaseUrl/api/swf/series/$slug/chapters?page=$page", lazyHeaders)
+                GET("$apiBaseUrl/api/swf/series/$slug/chapters?page=$page", lazyHeaders),
             ).execute()
 
             res.use {
@@ -269,7 +269,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
                         }
                     }
                 }
-            })
+            },)
     }
 
     // -----------------------------
