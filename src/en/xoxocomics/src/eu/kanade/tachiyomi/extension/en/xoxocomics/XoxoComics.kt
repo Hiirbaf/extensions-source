@@ -71,14 +71,8 @@ class XoxoComics : WPComics(
         } else {
             val url = baseUrl.toHttpUrl().newBuilder()
 
-            var genreFilter: UriPartFilter? = null
-            var statusFilter: UriPartFilter? = null
-            filterList.forEach { filter ->
-                when (filter) {
-                    is GenreFilter -> genreFilter = filter
-                    is StatusFilter -> statusFilter = filter
-                }
-            }
+            val genreFilter = filterList.filterIsInstance<GenreFilter>().firstOrNull()
+            val statusFilter = filterList.filterIsInstance<StatusFilter>().firstOrNull()
 
             val genreSegment = genreFilter?.toUriPart()?.trim('/')?.takeIf { it.isNotBlank() }
             val statusSegment = statusFilter?.toUriPart()?.trim('/')?.takeIf { it.isNotBlank() }
