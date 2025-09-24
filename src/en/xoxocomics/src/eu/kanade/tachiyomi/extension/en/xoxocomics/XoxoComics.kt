@@ -58,7 +58,8 @@ class XoxoComics : WPComics(
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val filterList = filters.let { if (it.isEmpty()) getFilterList() else it }
+        val filterList = if (filters.isEmpty()) getFilterList() else filters
+
         return if (query.isNotEmpty() || filterList.isEmpty()) {
             // Search won't work together with filter
             val url = baseUrl.toHttpUrl().newBuilder()
@@ -66,7 +67,7 @@ class XoxoComics : WPComics(
                 .addQueryParameter("keyword", query)
                 .addQueryParameter("page", page.toString())
                 .build()
-            return GET(url, headers)
+            GET(url, headers)
         } else {
             val url = baseUrl.toHttpUrl().newBuilder()
 
@@ -76,20 +77,32 @@ class XoxoComics : WPComics(
                 when (filter) {
                     is GenreFilter -> genreFilter = filter
                     is StatusFilter -> statusFilter = filter
-                    else -> {}
                 }
             }
 
-            // Genre filter must come before status filter
-            genreFilter?.toUriPart()?.let { url.addPathSegment(it) }
-            statusFilter?.toUriPart()?.let { url.addPathSegment(it) }
+            val genreSegment = genreFilter?.toUriPart()?.trim('/')?.takeIf { it.isNotBlank() }
+            val statusSegment = statusFilter?.toUriPart()?.trim('/')?.takeIf { it.isNotBlank() }
 
-            url.apply {
-                addQueryParameter("page", page.toString())
-                addQueryParameter("sort", "0")
+            when {
+                genreSegment != null && statusSegment != null -> {
+                    // Genre + status
+                    url.addPathSegment(genreSegment)
+                    url.addPathSegment(statusSegment)
+                }
+                genreSegment != null -> {
+                    // Only genre
+                    url.addPathSegment(genreSegment)
+                }
+                statusSegment != null -> {
+                    // Only status
+                    url.addPathSegment(statusSegment)
+                }
             }
 
-            GET(url.toString(), headers)
+            url.addQueryParameter("page", page.toString())
+            url.addQueryParameter("sort", "0")
+
+            GET(url.build().toString(), headers)
         }
     }
 
