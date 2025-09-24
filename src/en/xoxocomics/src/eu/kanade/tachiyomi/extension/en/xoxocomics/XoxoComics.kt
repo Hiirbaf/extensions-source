@@ -8,10 +8,8 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.asJsoup
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
-import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -23,28 +21,9 @@ class XoxoComics : WPComics(
     dateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US),
     gmtOffset = null,
 ) {
-    override val client = super.client.newBuilder()
-        .addNetworkInterceptor { chain ->
-            val request = chain.request()
-            if (!request.url.toString().endsWith("#imagereq")) {
-                return@addNetworkInterceptor chain.proceed(request)
-            }
-
-            val response = chain.proceed(request)
-            if (response.code == 404) { // 404 is returned even when the image is found
-                val newResponse = response.newBuilder()
-                    .code(200)
-                    .body(response.body)
-                    .build()
-                newResponse
-            } else {
-                response
-            }
-        }
-        .build()
-
     override val searchPath = "search-comic"
     override val popularPath = "hot-comic"
+
     override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/comic-update?page=$page", headers)
     override fun latestUpdatesSelector() = "li.row"
     override fun latestUpdatesFromElement(element: Element): SManga {
@@ -57,64 +36,58 @@ class XoxoComics : WPComics(
         }
     }
 
+    override fun getFilterList(): FilterList {
+        launchIO { fetchGenres() }
+        return FilterList(
+            Filter.Header("Search query ignores Genre/Status filter"),
+            StatusFilter("Status", getStatusList()),
+            if (genreList.isEmpty()) {
+                Filter.Header("Tap 'Reset' to load genres")
+            } else {
+                GenreFilter("Genre", genreList)
+            },
+        )
+    }
+
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val filterList = if (filters.isEmpty()) getFilterList() else filters
+        // Obtener filtros seleccionados
+        val genreFilter = filters.filterIsInstance<GenreFilter>().firstOrNull()
+        val statusFilter = filters.filterIsInstance<StatusFilter>().firstOrNull()
 
-        return if (query.isNotEmpty() || filterList.isEmpty()) {
-            // Search won't work together with filter
-            val url = baseUrl.toHttpUrl().newBuilder()
-                .addPathSegment(searchPath)
-                .addQueryParameter("keyword", query)
-                .addQueryParameter("page", page.toString())
-                .build()
-            GET(url, headers)
-        } else {
-            val url = baseUrl.toHttpUrl().newBuilder()
-
-            val genreFilter = filterList.filterIsInstance<GenreFilter>().firstOrNull()
-            val statusFilter = filterList.filterIsInstance<StatusFilter>().firstOrNull()
-
-            val genreSegment = genreFilter?.toUriPart()?.trim('/')?.takeIf { it.isNotBlank() }
-            val statusSegment = statusFilter?.toUriPart()?.trim('/')?.takeIf { it.isNotBlank() }
-
-            when {
-                genreSegment != null && statusSegment != null -> {
-                    // Only genre + status
-                    // Ej: https://xoxocomic.com/action-comic/completed
-                    url.addPathSegment(genreSegment + "-comic")
-                    url.addPathSegment(statusSegment)
-                }
-                genreSegment != null -> {
-                    // Only genre
-                    // Ej: https://xoxocomic.com/action-comic
-                    url.addPathSegment(genreSegment + "-comic")
-                }
-                statusSegment != null -> {
-                    // Only status
-                    // Ej: https://xoxocomic.com/comic/completed
-                    url.addPathSegment("comic")
-                    url.addPathSegment(statusSegment)
-                }
-            }
-
-            url.addQueryParameter("page", page.toString())
-            url.addQueryParameter("sort", "0")
-
-            GET(url.build().toString(), headers)
+        // Si hay query, hacemos búsqueda por texto
+        if (query.isNotEmpty()) {
+            val url = "$baseUrl/$searchPath?keyword=$query&page=$page"
+            return GET(url, headers)
         }
+
+        // Construir URL según filtros
+        val urlBuilder = StringBuilder(baseUrl)
+        when {
+            genreFilter != null && statusFilter != null -> {
+                // Género + status: https://xoxocomic.com/{genre}-comic/{status}
+                urlBuilder.append("/${genreFilter.toUriPart()}-comic/${statusFilter.toUriPart()}")
+            }
+            genreFilter != null -> {
+                // Solo género: https://xoxocomic.com/{genre}-comic
+                urlBuilder.append("/${genreFilter.toUriPart()}-comic")
+            }
+            statusFilter != null -> {
+                // Solo status: https://xoxocomic.com/comic/{status}
+                urlBuilder.append("/comic/${statusFilter.toUriPart()}")
+            }
+        }
+        urlBuilder.append("?page=$page&sort=0")
+        return GET(urlBuilder.toString(), headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val chapters = mutableListOf<SChapter>()
-
-        // recursively add chapters from paginated chapter list
-        fun parseChapters(document: Document) {
-            document.select(chapterListSelector()).map { chapters.add(chapterFromElement(it)) }
-            document.select("ul.pagination a[rel=next]").firstOrNull()?.let { a ->
-                parseChapters(client.newCall(GET(a.attr("abs:href"), headers)).execute().asJsoup())
+        fun parseChapters(doc: org.jsoup.nodes.Document) {
+            doc.select(chapterListSelector()).map { chapters.add(chapterFromElement(it)) }
+            doc.select("ul.pagination a[rel=next]").firstOrNull()?.let { next ->
+                parseChapters(client.newCall(GET(next.attr("abs:href"), headers)).execute().asJsoup())
             }
         }
-
         parseChapters(response.asJsoup())
         return chapters
     }
@@ -126,25 +99,8 @@ class XoxoComics : WPComics(
     }
 
     override fun pageListRequest(chapter: SChapter): Request = GET(baseUrl + "${chapter.url}/all", headers)
+    override fun imageRequest(page: Page): Request = GET(page.imageUrl!! + "#imagereq", headers)
 
     override fun genresRequest() = GET("$baseUrl/comic-list", headers)
-
     override val genresSelector = ".genres h2:contains(Genres) + ul.nav li a"
-
-    override fun getFilterList(): FilterList {
-        launchIO { fetchGenres() }
-        return FilterList(
-            Filter.Header("Search query won't use Genre/Status filter"),
-            StatusFilter("Status", getStatusList()),
-            if (genreList.isEmpty()) {
-                Filter.Header("Tap 'Reset' to load genres")
-            } else {
-                GenreFilter("Genre", genreList)
-            },
-        )
-    }
-
-    override fun imageRequest(page: Page): Request {
-        return GET(page.imageUrl!! + "#imagereq", headers)
-    }
 }
