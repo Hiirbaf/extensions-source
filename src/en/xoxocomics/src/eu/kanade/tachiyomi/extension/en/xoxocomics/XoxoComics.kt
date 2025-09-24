@@ -81,13 +81,13 @@ class XoxoComics : WPComics(
                 genreSegment != null && statusSegment != null -> {
                     // Only genre + status
                     // Ej: https://xoxocomic.com/action-comic/completed
-                    url.addPathSegment("${genreSegment}-comic")
+                    url.addPathSegment(genreSegment + "-comic")
                     url.addPathSegment(statusSegment)
                 }
                 genreSegment != null -> {
                     // Only genre
                     // Ej: https://xoxocomic.com/action-comic
-                    url.addPathSegment("${genreSegment}-comic")
+                    url.addPathSegment(genreSegment + "-comic")
                 }
                 statusSegment != null -> {
                     // Only status
