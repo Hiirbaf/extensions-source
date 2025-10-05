@@ -179,22 +179,32 @@ def find_comic_archives(directory: Path) -> List[Path]:
 
 def main():
     parser = argparse.ArgumentParser(description='Extrae archivos CBZ/CBR con lógica inteligente')
-    parser.add_argument('input_dir', nargs='?', default='.', help='Directorio con archivos CBZ/CBR (por defecto: directorio actual)')
+    parser.add_argument('input_dir', nargs='?', help='Directorio con archivos CBZ/CBR')
     parser.add_argument('-o', '--output', help='Directorio de salida (por defecto: mismo que entrada)')
     parser.add_argument('--dry-run', action='store_true', help='Solo mostrar qué se haría sin extraer')
     parser.add_argument('--verbose', '-v', action='store_true', help='Mostrar más detalles')
     parser.add_argument('--skip-rar', action='store_true', help='Omitir archivos CBR/RAR')
     
     args = parser.parse_args()
-    
-    input_dir = Path(args.input_dir)
+
+    # ✅ Si no se pasó ruta, pedirla al usuario
+    if not args.input_dir:
+        user_input = input("📂 Ingresa la ruta donde están los archivos CBZ/CBR: ").strip()
+        if not user_input:
+            print("❌ No se ingresó ninguna ruta. Saliendo.")
+            return 1
+        input_dir = Path(user_input)
+    else:
+        input_dir = Path(args.input_dir)
+
+    # Verificar que exista el directorio
     if not input_dir.exists() or not input_dir.is_dir():
-        print(f"Error: El directorio '{input_dir}' no existe")
+        print(f"❌ Error: El directorio '{input_dir}' no existe o no es válido.")
         return 1
-    
+
     output_dir = Path(args.output) if args.output else input_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Verificar soporte RAR
     rar_supported = check_rar_support()
     if not rar_supported and not args.skip_rar:
@@ -205,45 +215,41 @@ def main():
         print("      - En Termux/Android: pkg install unrar")
         print("      - En Ubuntu/Debian: apt install unrar")
         print("      - En macOS: brew install unrar")
-        print("   3. O usa --skip-rar para omitir archivos CBR")
-        print()
-    
-    # Encontrar archivos
+        print("   3. O usa --skip-rar para omitir archivos CBR\n")
+
+    # Buscar archivos
     archives = find_comic_archives(input_dir)
-    
+
     if args.skip_rar or not rar_supported:
-        # Filtrar archivos RAR si no hay soporte
         original_count = len(archives)
         archives = [a for a in archives if a.suffix.lower() != '.cbr']
         if original_count > len(archives):
             print(f"Omitiendo {original_count - len(archives)} archivo(s) CBR")
-    
+
     if not archives:
-        print(f"No se encontraron archivos CBZ/CBR procesables en '{input_dir}'")
+        print(f"📭 No se encontraron archivos CBZ/CBR procesables en '{input_dir}'")
         return 1
-    
-    print(f"Encontrados {len(archives)} archivo(s) para procesar")
-    print(f"Directorio de salida: {output_dir}")
-    
+
+    print(f"🔍 Encontrados {len(archives)} archivo(s) para procesar")
+    print(f"📁 Carpeta de salida: {output_dir}")
+
     if args.dry_run:
         print("\n=== MODO DRY RUN - NO SE EXTRAERÁ NADA ===")
-    
+
     print()
-    
-    # Procesar archivos
     successful = 0
     failed = 0
-    
+
     for archive in archives:
         if extract_cbz_cbr(archive, output_dir, args.dry_run):
             successful += 1
         else:
             failed += 1
-    
-    print(f"\nResultados:")
+
+    print(f"\n📊 Resultados:")
     print(f"  ✓ Exitosos: {successful}")
     print(f"  ✗ Fallidos: {failed}")
-    
+
     return 0 if failed == 0 else 1
 
 if __name__ == "__main__":
