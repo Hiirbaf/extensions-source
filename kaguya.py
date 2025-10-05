@@ -204,6 +204,10 @@ def sanitize_filename(name: str) -> str:
     return name
 
 def load_manga_json(base_folder_path: Path, manga_title: str, live: Optional[Live] = None) -> Tuple[Dict[str, Any], Path]:
+    """
+    Carga o crea el archivo JSON del manga. 
+    Si ya existe, conserva los capítulos antiguos.
+    """
     output_func = live.console.print if live else console.print
     sanitized_title = sanitize_filename(manga_title if manga_title else base_folder_path.name)
     json_file = base_folder_path / f"{sanitized_title}.json"
@@ -212,11 +216,20 @@ def load_manga_json(base_folder_path: Path, manga_title: str, live: Optional[Liv
         try:
             with open(json_file, 'r', encoding='utf-8') as f:
                 manga_json_data = json.load(f)
+
+            # ✅ Asegurar estructura mínima
+            if 'chapters' not in manga_json_data or not isinstance(manga_json_data['chapters'], dict):
+                manga_json_data['chapters'] = {}
+            for field in ['title', 'description', 'artist', 'author', 'cover']:
+                if field not in manga_json_data:
+                    manga_json_data[field] = ""
+
             output_func(f"[dim]Se cargaron datos de manga existentes desde {json_file}[/dim]")
             return manga_json_data, json_file
         except (json.JSONDecodeError, IOError) as e:
             output_func(f"[yellow]Advertencia: No se pudo leer el archivo JSON {json_file}: {e}. Se está creando uno nuevo.[/yellow]")
 
+    # ✅ Si no existe, crear estructura nueva
     manga_json_data = {"title": manga_title, "description": "", "artist": "", "author": "", "cover": "", "chapters": {}}
     return manga_json_data, json_file
 
@@ -805,6 +818,7 @@ def process_single_chapter_folder(
     if 'chapters' not in manga_json_data_to_update:
         manga_json_data_to_update['chapters'] = {}
 
+    # Si ya está registrado en el archivo de uploads
     if folder_details.name in uploaded_folders_record:
         existing_record = uploaded_folders_record[folder_details.name]
         current_live_status = live.is_started
@@ -812,25 +826,26 @@ def process_single_chapter_folder(
         console.line()
         console.print(f"[yellow]⚠️ Chapter folder '{folder_details.name}' found in upload record ({UPLOAD_RECORD_FILE})![/yellow]")
         console.print(f"   URL: {existing_record['album_url']} Date: {existing_record['timestamp']} Images: {existing_record.get('image_count', 'N/A')}")
-        skip_choice = console.input(f"\n[bold yellow]Skip re-uploading '{folder_details.name}'? (Y/n):[/bold yellow] ").strip().lower()
+        skip_choice = console.input(f"\n[bold yellow]¿Omitir la recarga de '{folder_details.name}'? (Y/n):[/bold yellow] ").strip().lower()
         console.line()
         if current_live_status: live.start(refresh=True)
 
         if skip_choice != 'n':
-            live.console.print(f"[dim]Skipped re-upload for '{folder_details.name}'. The corresponding entry in manga.json (if any) will not be modified.[/dim]")
+            live.console.print(f"[dim]Omitido re-upload de '{folder_details.name}'. El JSON no será modificado.[/dim]")
             return CHAPTER_PROC_SKIPPED_EXISTING_USER_CONFIRMED
 
-    live.console.print(f"\n[bold]📂 Chapter Info:[/bold] Vol: {chapter_info.volume or 'N/A'}, Ch: {chapter_info.chapter}, Título: {chapter_info.title or 'N/A'}")
-    live.console.print(f"[bold]📸 {len(image_files)} imagen(es) encontradas.[/bold]", highlight= False)
+    live.console.print(f"\n[bold]📂 Capítulo:[/bold] Vol: {chapter_info.volume or 'N/A'}, Ch: {chapter_info.chapter}, Título: {chapter_info.title or 'N/A'}")
+    live.console.print(f"[bold]📸 {len(image_files)} imagen(es) encontradas.[/bold]", highlight=False)
 
     upload_res = upload_all_images_for_chapter_to_host(image_files, imgchest_api_key, folder_details.name, progress, live, manga_json_data_to_update)
 
     if upload_res['success']:
         live.console.line()
-        live.console.print(f"[bold green]🎉 Chapter Image Upload SUCCESS! {upload_res['total_uploaded']} images for '{folder_details.name}'.[/bold green]")
+        live.console.print(f"[bold green]🎉 Subida de imágenes exitosa: {upload_res['total_uploaded']} imágenes para '{folder_details.name}'.[/bold green]")
         live.console.print(f"Album URL: {upload_res['album_url']}")
         live.console.line()
 
+        # Actualizar registro de uploads
         uploaded_folders_record[folder_details.name] = {
             'album_url': upload_res['album_url'],
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -838,29 +853,30 @@ def process_single_chapter_folder(
             'post_id': upload_res['post_id']
         }
 
+        # --- 🔁 Agregar capítulo sin sobrescribir los existentes ---
         final_chapter_key = chapter_info.chapter
         if final_chapter_key in manga_json_data_to_update['chapters']:
-            live.console.print(f"[yellow]Note: Chapter key '{final_chapter_key}' already exists in manga.json. It will be overwritten.[/yellow]")
+            live.console.print(f"[yellow]El capítulo '{final_chapter_key}' ya existe en el JSON. Se conserva sin cambios.[/yellow]")
+        else:
+            proxy_path = f"/proxy/api/imgchest/chapter/{upload_res['post_id']}"
+            ch_data: Dict[str, Any] = {
+                "title": chapter_info.title,
+                "last_updated": str(int(time.time())),
+                "groups": {manga_main_groups_info: proxy_path}
+            }
+            if chapter_info.volume:
+                ch_data["volume"] = chapter_info.volume
 
-        proxy_path = f"/proxy/api/imgchest/chapter/{upload_res['post_id']}"
+            manga_json_data_to_update['chapters'][final_chapter_key] = ch_data
+            live.console.print(f"[green]Capítulo '{folder_details.name}' agregado exitosamente al JSON como '{final_chapter_key}'.[/green]")
 
-        ch_data: Dict[str, Any] = {
-            "title": chapter_info.title,
-            "last_updated": str(int(time.time())),
-            "groups": {manga_main_groups_info: proxy_path}
-        }
-        if chapter_info.volume:
-            ch_data["volume"] = chapter_info.volume
-
-        manga_json_data_to_update['chapters'][final_chapter_key] = ch_data
-        live.console.print(f"[green]Capítulo '{folder_details.name}' Agregado/actualizado exitosamente en Manga.json con clave '{final_chapter_key}'.[/green]")
         return CHAPTER_PROC_UPLOAD_SUCCESS
 
     else:
         live.console.line()
-        live.console.print(f"[bold red]❌ Chapter Upload FAILED for '{folder_details.name}': {upload_res.get('error', 'Unknown')}[/bold red]")
+        live.console.print(f"[bold red]❌ Falló la subida del capítulo '{folder_details.name}': {upload_res.get('error', 'Unknown')}[/bold red]")
         if upload_res.get('total_uploaded', 0) > 0 and 'album_url' in upload_res and upload_res['album_url']:
-            live.console.print(f"[yellow]Partial chapter upload success: {upload_res['total_uploaded']} images. Album URL: {upload_res['album_url']}[/yellow]")
+            live.console.print(f"[yellow]Subida parcial: {upload_res['total_uploaded']} imágenes. URL: {upload_res['album_url']}[/yellow]")
         live.console.line()
         return CHAPTER_PROC_ERROR_UPLOAD_FAILED
 
