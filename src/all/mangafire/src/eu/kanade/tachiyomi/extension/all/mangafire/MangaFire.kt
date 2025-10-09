@@ -199,57 +199,26 @@ class MangaFire(
     }
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
-        val path = manga.url
-        val mangaId = path.removeSuffix(VOLUME_URL_SUFFIX).substringAfterLast(".")
-        val isVolume = path.endsWith(VOLUME_URL_SUFFIX)
+        val response = client.newCall(GET(baseUrl + manga.url, headers)).execute()
+        val document = response.asJsoup()
 
-        val type = if (isVolume) "volume" else "chapter"
-        val abbrPrefix = if (isVolume) "Vol" else "Chap"
-        val fullPrefix = if (isVolume) "Volume" else "Chapter"
+        val chapterElements = document.select(".tab-content[data-name=chapter] li.item")
+        val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.US)
 
-        val ajaxMangaList = client.newCall(getAjaxRequest("manga", mangaId, type))
-            .execute().parseAs<ResponseDto<String>>().result
-            .toBodyFragment()
-            .select(if (isVolume) ".vol-list > .item" else "li")
-
-        val ajaxReadList = client.newCall(getAjaxRequest("read", mangaId, type))
-            .execute().parseAs<ResponseDto<AjaxReadDto>>().result.html
-            .toBodyFragment()
-            .select("ul a")
-
-        val chapterList = ajaxMangaList.zip(ajaxReadList) { m, r ->
-            val link = r.selectFirst("a")!!
-            if (!r.attr("abs:href").toHttpUrl().pathSegments.last().contains(type)) {
-                return Observable.just(emptyList())
-            }
-
-            assert(m.attr("data-number") == r.attr("data-number")) {
-                "Chapter count doesn't match. Try updating again."
-            }
-
-            val number = m.attr("data-number")
-            val dateStr = m.select("span").getOrNull(1)?.text() ?: ""
+        val chapters = chapterElements.map { el ->
+            val a = el.selectFirst("a")!!
+            val number = el.attr("data-number")
+            val dateStr = el.selectFirst("span + span")?.text()?.trim().orEmpty()
 
             SChapter.create().apply {
-                setUrlWithoutDomain("${link.attr("href")}#$type/${r.attr("data-id")}")
+                setUrlWithoutDomain(a.attr("href"))
+                name = a.selectFirst("span")?.text() ?: "Chapter $number"
                 chapter_number = number.toFloatOrNull() ?: -1f
-                name = run {
-                    val name = link.text()
-                    val prefix = "$abbrPrefix $number: "
-                    if (!name.startsWith(prefix)) return@run name
-                    val realName = name.removePrefix(prefix)
-                    if (realName.contains(number)) realName else "$fullPrefix $number: $realName"
-                }
-
-                date_upload = try {
-                    dateFormat.parse(dateStr)!!.time
-                } catch (_: ParseException) {
-                    0L
-                }
+                date_upload = try { dateFormat.parse(dateStr)?.time ?: 0L } catch (_: Exception) { 0L }
             }
         }
 
-        return Observable.just(chapterList)
+        return Observable.just(chapters)
     }
 
     // =============================== Pages ================================
