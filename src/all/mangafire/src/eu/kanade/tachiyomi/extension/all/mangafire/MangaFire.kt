@@ -217,41 +217,49 @@ class MangaFire(
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val html = response.body.string()
-        val document = Jsoup.parse(html, baseUrl)
+        val document = response.asJsoup()
 
-        // Find the __NEXT_DATA__ script tag
-        val scriptContent = document.selectFirst("script#__NEXT_DATA__")?.data()
-            ?: throw Exception("__NEXT_DATA__ script not found")
+        // Extract manga ID and chapter number from the body attributes
+        val body = document.selectFirst("body")
+            ?: throw Exception("Could not find body element")
 
-        return try {
-            // Parse the JSON
-            val rootElement = json.parseToJsonElement(scriptContent)
+        val mangaId = body.attr("data-id")
+        val chapterNumber = body.attr("data-number")
+        val lang = body.attr("data-lang")
 
-            // Navigate to the images array with safe calls
-            val imagesArray = rootElement
-                .jsonObject["props"]
-                ?.jsonObject?.get("pageProps")
-                ?.jsonObject?.get("chapter")
-                ?.jsonObject?.get("images")
-                ?.jsonArray
-                ?: throw Exception("Images array not found in JSON structure")
+        if (mangaId.isEmpty() || chapterNumber.isEmpty()) {
+            throw Exception("Could not extract manga ID or chapter number")
+        }
 
-            // Extract image URLs
-            val urls = imagesArray.mapNotNull { element ->
-                element.jsonPrimitive.content.takeIf { it.isNotBlank() }
-            }
+        // Make AJAX request to get images
+        val ajaxUrl = "$baseUrl/ajax/read/chapter/$chapterNumber"
+        val ajaxHeaders = headersBuilder()
+            .set("X-Requested-With", "XMLHttpRequest")
+            .set("Referer", response.request.url.toString())
+            .build()
 
-            if (urls.isEmpty()) {
-                throw Exception("No images found in chapter")
-            }
+        val ajaxRequest = GET(ajaxUrl, ajaxHeaders)
+        val ajaxResponse = client.newCall(ajaxRequest).execute()
 
-            // Create pages
-            urls.mapIndexed { index, url ->
-                Page(index, imageUrl = url)
-            }
-        } catch (e: Exception) {
-            throw Exception("Failed to parse page list: ${e.message}", e)
+        if (!ajaxResponse.isSuccessful) {
+            throw Exception("AJAX request failed: ${ajaxResponse.code}")
+        }
+
+        val ajaxHtml = ajaxResponse.body.string()
+        val ajaxDoc = Jsoup.parse(ajaxHtml)
+
+        // Extract image URLs from the AJAX response
+        val imageUrls = ajaxDoc.select("img").mapNotNull { img ->
+            val src = img.attr("data-src").ifBlank { img.attr("src") }
+            src.takeIf { it.isNotBlank() && (it.startsWith("http") || it.startsWith("//")) }
+        }
+
+        if (imageUrls.isEmpty()) {
+            throw Exception("No images found in AJAX response")
+        }
+
+        return imageUrls.mapIndexed { index, url ->
+            Page(index, imageUrl = url)
         }
     }
 
