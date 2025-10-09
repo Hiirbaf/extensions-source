@@ -228,24 +228,29 @@ class MangaFire(
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val document = response.asJsoup()
+        val html = response.body.string() // solo una lectura
+        val document = Jsoup.parse(html, baseUrl)
 
-        // 1️⃣ Intentar encontrar directamente las imágenes (HTML estándar)
         val images = document.select("img.viewer-image, .page-image, .container-reader img[data-src], .container-reader img[src]")
 
-        if (images.isEmpty()) {
-            // 2️⃣ Fallback: intentar parsear JSON embebido (algunos capítulos lo incluyen)
-            val html = response.body.string()
-            val regex = Regex("""\"images\":\[(.*?)\]""")
-            val match = regex.find(html)
-            if (match != null) {
-                val jsonPart = "[${match.groupValues[1]}]"
-                val urls = jsonPart.split(",").map { it.trim('"') }
-                return urls.mapIndexed { i, url -> Page(i, imageUrl = url) }
+        if (images.isNotEmpty()) {
+            return images.mapIndexed { i, img ->
+                val url = img.attr("abs:data-src").ifEmpty { img.attr("abs:src") }
+                Page(i, imageUrl = url)
             }
-
-            throw Exception("No se encontraron imágenes en el capítulo.")
         }
+
+        // fallback: buscar JSON embebido con imágenes
+        val regex = Regex("""\"images\":\[(.*?)\]""")
+        val match = regex.find(html)
+        if (match != null) {
+            val jsonPart = "[${match.groupValues[1]}]"
+            val urls = jsonPart.split(",").map { it.trim('"') }
+            return urls.mapIndexed { i, url -> Page(i, imageUrl = url) }
+        }
+
+        throw Exception("No se encontraron imágenes en el capítulo.")
+    }
 
         return images.mapIndexed { i, img ->
             val url = img.attr("abs:data-src").ifEmpty { img.attr("abs:src") }
