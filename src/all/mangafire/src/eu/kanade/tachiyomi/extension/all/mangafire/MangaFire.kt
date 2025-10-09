@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.extension.all.mangafire
 
 import androidx.preference.PreferenceScreen
-import androidx.preference.PreferenceSwitch
+import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -12,9 +12,7 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferencesLazy
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -229,7 +227,7 @@ class MangaFire(
         return try {
             // Parse the JSON
             val rootElement = json.parseToJsonElement(scriptContent)
-            
+
             // Navigate to the images array with safe calls
             val imagesArray = rootElement
                 .jsonObject["props"]
