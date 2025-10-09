@@ -1,25 +1,7 @@
 package eu.kanade.tachiyomi.extension.all.mangafire
 
-import java.text.SimpleDateFormat
-import java.util.Locale
-import kotlin.*
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Request
-import okhttp3.Response
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import org.jsoup.nodes.Element
-import rx.Observable
-import uy.kohesive.injekt.injectLazy
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -30,6 +12,22 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferencesLazy
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.int
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
+import okhttp3.Response
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
+import rx.Observable
+import uy.kohesive.injekt.injectLazy
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class MangaFire(
     override val lang: String,
@@ -201,67 +199,75 @@ class MangaFire(
     }
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
-        val response = client.newCall(GET(baseUrl + manga.url, headers)).execute()
-        val document = response.asJsoup()
+        val path = manga.url
+        val mangaId = path.removeSuffix(VOLUME_URL_SUFFIX).substringAfterLast(".")
+        val isVolume = path.endsWith(VOLUME_URL_SUFFIX)
 
-        val chapterElements = document.select(".tab-content[data-name=chapter] li.item")
-        val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.US)
+        val type = if (isVolume) "volume" else "chapter"
+        val abbrPrefix = if (isVolume) "Vol" else "Chap"
+        val fullPrefix = if (isVolume) "Volume" else "Chapter"
 
-        val chapters = chapterElements.map { el ->
-            val a = el.selectFirst("a")!!
-            val number = el.attr("data-number")
-            val dateStr = el.selectFirst("span + span")?.text()?.trim().orEmpty()
+        val ajaxMangaList = client.newCall(getAjaxRequest("manga", mangaId, type))
+            .execute().parseAs<ResponseDto<String>>().result
+            .toBodyFragment()
+            .select(if (isVolume) ".vol-list > .item" else "li")
+
+        val ajaxReadList = client.newCall(getAjaxRequest("read", mangaId, type))
+            .execute().parseAs<ResponseDto<AjaxReadDto>>().result.html
+            .toBodyFragment()
+            .select("ul a")
+
+        val chapterList = ajaxMangaList.zip(ajaxReadList) { m, r ->
+            val link = r.selectFirst("a")!!
+            if (!r.attr("abs:href").toHttpUrl().pathSegments.last().contains(type)) {
+                return Observable.just(emptyList())
+            }
+
+            assert(m.attr("data-number") == r.attr("data-number")) {
+                "Chapter count doesn't match. Try updating again."
+            }
+
+            val number = m.attr("data-number")
+            val dateStr = m.select("span").getOrNull(1)?.text() ?: ""
 
             SChapter.create().apply {
-                setUrlWithoutDomain(a.attr("href"))
-                name = a.selectFirst("span")?.text() ?: "Chapter $number"
+                setUrlWithoutDomain("${link.attr("href")}#$type/${r.attr("data-id")}")
                 chapter_number = number.toFloatOrNull() ?: -1f
-                date_upload = try { dateFormat.parse(dateStr)?.time ?: 0L } catch (_: Exception) { 0L }
+                name = run {
+                    val name = link.text()
+                    val prefix = "$abbrPrefix $number: "
+                    if (!name.startsWith(prefix)) return@run name
+                    val realName = name.removePrefix(prefix)
+                    if (realName.contains(number)) realName else "$fullPrefix $number: $realName"
+                }
+
+                date_upload = try {
+                    dateFormat.parse(dateStr)!!.time
+                } catch (_: ParseException) {
+                    0L
+                }
             }
         }
 
-        return Observable.just(chapters)
+        return Observable.just(chapterList)
     }
 
     // =============================== Pages ================================
 
     override fun pageListRequest(chapter: SChapter): Request {
-        // Usa la URL real del capítulo (sin ajax)
-        return GET(baseUrl + chapter.url.substringBeforeLast("#"), headers)
+        val typeAndId = chapter.url.substringAfterLast('#')
+        return GET("$baseUrl/ajax/read/$typeAndId", headers)
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val html = response.body.string()
-        val document = Jsoup.parse(html, baseUrl)
+        val result = response.parseAs<ResponseDto<PageListDto>>().result
 
-        // 1️⃣ Buscar el script con id="__NEXT_DATA__"
-        val script = document.selectFirst("script#__NEXT_DATA__")?.data()
-            ?: throw Exception("No se encontró el bloque __NEXT_DATA__")
+        return result.pages.mapIndexed { index, image ->
+            val url = image.url
+            val offset = image.offset
+            val imageUrl = if (offset > 0) "$url#${ImageInterceptor.SCRAMBLED}_$offset" else url
 
-        // 2️⃣ Parsear el JSON dentro del script
-        val root = json.parseToJsonElement(script)
-        val imagesJson = root
-            .jsonObject["props"]?.jsonObject
-            ?.get("pageProps")?.jsonObject
-            ?.get("chapter")?.jsonObject
-            ?.get("images")
-
-        if (imagesJson == null) {
-            throw Exception("No se encontró el array de imágenes en __NEXT_DATA__")
-        }
-
-        // 3️⃣ Convertir a lista de URLs
-        val urls = imagesJson.jsonArray.mapNotNull {
-            it.toString().trim('"')
-        }
-
-        if (urls.isEmpty()) {
-            throw Exception("No se encontraron imágenes en el capítulo.")
-        }
-
-        // 4️⃣ Crear las páginas
-        return urls.mapIndexed { index, url ->
-            Page(index, imageUrl = url)
+            Page(index, imageUrl = imageUrl)
         }
     }
 
