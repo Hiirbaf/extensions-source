@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.extension.all.mangafire
 
+import java.text.SimpleDateFormat
+import java.util.Locale
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.network.GET
@@ -26,8 +28,6 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import rx.Observable
 import uy.kohesive.injekt.injectLazy
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class MangaFire(
     override val lang: String,
