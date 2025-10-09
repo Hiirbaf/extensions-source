@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.extension.all.mangafire
 
 import androidx.preference.PreferenceScreen
-import androidx.preference.SwitchPreferenceCompat
+import androidx.preference.PreferenceSwitch
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -13,11 +13,11 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.int
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -185,15 +185,6 @@ class MangaFire(
         return baseUrl + chapter.url.substringBeforeLast("#")
     }
 
-    private fun getAjaxRequest(ajaxType: String, mangaId: String, chapterType: String): Request {
-        return GET("$baseUrl/ajax/$ajaxType/$mangaId/$chapterType/$langCode", headers)
-    }
-
-    @Serializable
-    class AjaxReadDto(
-        val html: String,
-    )
-
     override fun chapterListParse(response: Response): List<SChapter> {
         throw UnsupportedOperationException()
     }
@@ -224,7 +215,6 @@ class MangaFire(
     // =============================== Pages ================================
 
     override fun pageListRequest(chapter: SChapter): Request {
-        // Usa la URL real del capítulo (sin ajax)
         return GET(baseUrl + chapter.url.substringBeforeLast("#"), headers)
     }
 
@@ -232,46 +222,40 @@ class MangaFire(
         val html = response.body.string()
         val document = Jsoup.parse(html, baseUrl)
 
-        // 1️⃣ Buscar el script con id="__NEXT_DATA__"
-        val script = document.selectFirst("script#__NEXT_DATA__")?.data()
-            ?: throw Exception("No se encontró el bloque __NEXT_DATA__")
+        // Find the __NEXT_DATA__ script tag
+        val scriptContent = document.selectFirst("script#__NEXT_DATA__")?.data()
+            ?: throw Exception("__NEXT_DATA__ script not found")
 
-        // 2️⃣ Parsear el JSON dentro del script
-        val root = json.parseToJsonElement(script)
-        val imagesJson = root
-            .jsonObject["props"]?.jsonObject
-            ?.get("pageProps")?.jsonObject
-            ?.get("chapter")?.jsonObject
-            ?.get("images")
+        return try {
+            // Parse the JSON
+            val rootElement = json.parseToJsonElement(scriptContent)
+            
+            // Navigate to the images array with safe calls
+            val imagesArray = rootElement
+                .jsonObject["props"]
+                ?.jsonObject?.get("pageProps")
+                ?.jsonObject?.get("chapter")
+                ?.jsonObject?.get("images")
+                ?.jsonArray
+                ?: throw Exception("Images array not found in JSON structure")
 
-        if (imagesJson == null) {
-            throw Exception("No se encontró el array de imágenes en __NEXT_DATA__")
-        }
-
-        // 3️⃣ Convertir a lista de URLs
-        val urls = imagesJson.jsonArray.mapNotNull {
-            it.toString().trim('"')
-        }
-
-        if (urls.isEmpty()) {
-            throw Exception("No se encontraron imágenes en el capítulo.")
-        }
-
-        // 4️⃣ Crear las páginas
-        return urls.mapIndexed { index, url ->
-            Page(index, imageUrl = url)
-        }
-    }
-
-    @Serializable
-    class PageListDto(private val images: List<List<JsonPrimitive>>) {
-        val pages
-            get() = images.map {
-                Image(it[0].content, it[2].int)
+            // Extract image URLs
+            val urls = imagesArray.mapNotNull { element ->
+                element.jsonPrimitive.content.takeIf { it.isNotBlank() }
             }
-    }
 
-    class Image(val url: String, val offset: Int)
+            if (urls.isEmpty()) {
+                throw Exception("No images found in chapter")
+            }
+
+            // Create pages
+            urls.mapIndexed { index, url ->
+                Page(index, imageUrl = url)
+            }
+        } catch (e: Exception) {
+            throw Exception("Failed to parse page list: ${e.message}", e)
+        }
+    }
 
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException()
@@ -287,25 +271,8 @@ class MangaFire(
         }.let(screen::addPreference)
     }
 
-    // ============================= Utilities ==============================
-
-    @Serializable
-    class ResponseDto<T>(
-        val result: T,
-    )
-
-    private inline fun <reified T> Response.parseAs(): T {
-        return json.decodeFromString(body.string())
-    }
-
-    private fun String.toBodyFragment(): Document {
-        return Jsoup.parseBodyFragment(this, baseUrl)
-    }
-
     companion object {
-        private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.US)
         private const val SHOW_VOLUME_PREF = "show_volume"
-
         private const val VOLUME_URL_FRAGMENT = "vol"
         private const val VOLUME_URL_SUFFIX = "#$VOLUME_URL_FRAGMENT"
         private const val VOLUME_TITLE_PREFIX = "[VOL] "
