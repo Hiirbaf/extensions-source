@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.extension.all.mangafire
 
-import java.text.SimpleDateFormat
-import java.util.Locale
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.network.GET
@@ -20,6 +18,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.int
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -28,6 +27,9 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import rx.Observable
 import uy.kohesive.injekt.injectLazy
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class MangaFire(
     override val lang: String,
