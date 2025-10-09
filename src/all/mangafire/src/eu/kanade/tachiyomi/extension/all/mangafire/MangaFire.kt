@@ -224,19 +224,42 @@ class MangaFire(
     // =============================== Pages ================================
 
     override fun pageListRequest(chapter: SChapter): Request {
-        val typeAndId = chapter.url.substringAfterLast('#')
-        return GET("$baseUrl/ajax/read/$typeAndId", headers)
+        // Usa la URL real del capítulo (sin ajax)
+        return GET(baseUrl + chapter.url.substringBeforeLast("#"), headers)
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val result = response.parseAs<ResponseDto<PageListDto>>().result
+        val html = response.body.string()
+        val document = Jsoup.parse(html, baseUrl)
 
-        return result.pages.mapIndexed { index, image ->
-            val url = image.url
-            val offset = image.offset
-            val imageUrl = if (offset > 0) "$url#${ImageInterceptor.SCRAMBLED}_$offset" else url
+        // 1️⃣ Buscar el script con id="__NEXT_DATA__"
+        val script = document.selectFirst("script#__NEXT_DATA__")?.data()
+            ?: throw Exception("No se encontró el bloque __NEXT_DATA__")
 
-            Page(index, imageUrl = imageUrl)
+        // 2️⃣ Parsear el JSON dentro del script
+        val root = json.parseToJsonElement(script)
+        val imagesJson = root
+            .jsonObject["props"]?.jsonObject
+            ?.get("pageProps")?.jsonObject
+            ?.get("chapter")?.jsonObject
+            ?.get("images")
+
+        if (imagesJson == null) {
+            throw Exception("No se encontró el array de imágenes en __NEXT_DATA__")
+        }
+
+        // 3️⃣ Convertir a lista de URLs
+        val urls = imagesJson.jsonArray.mapNotNull {
+            it.toString().trim('"')
+        }
+
+        if (urls.isEmpty()) {
+            throw Exception("No se encontraron imágenes en el capítulo.")
+        }
+
+        // 4️⃣ Crear las páginas
+        return urls.mapIndexed { index, url ->
+            Page(index, imageUrl = url)
         }
     }
 
