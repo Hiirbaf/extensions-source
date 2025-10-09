@@ -223,19 +223,33 @@ class MangaFire(
     // =============================== Pages ================================
 
     override fun pageListRequest(chapter: SChapter): Request {
-        val typeAndId = chapter.url.substringAfterLast('#')
-        return GET("$baseUrl/ajax/read/$typeAndId", headers)
+        // Usa la URL real del capítulo (sin ajax)
+        return GET(baseUrl + chapter.url.substringBeforeLast("#"), headers)
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val result = response.parseAs<ResponseDto<PageListDto>>().result
+        val document = response.asJsoup()
 
-        return result.pages.mapIndexed { index, image ->
-            val url = image.url
-            val offset = image.offset
-            val imageUrl = if (offset > 0) "$url#${ImageInterceptor.SCRAMBLED}_$offset" else url
+        // 1️⃣ Intentar encontrar directamente las imágenes (HTML estándar)
+        val images = document.select("img.viewer-image, .page-image, .container-reader img[data-src], .container-reader img[src]")
 
-            Page(index, imageUrl = imageUrl)
+        if (images.isEmpty()) {
+            // 2️⃣ Fallback: intentar parsear JSON embebido (algunos capítulos lo incluyen)
+            val html = response.body.string()
+            val regex = Regex("""\"images\":\[(.*?)\]""")
+            val match = regex.find(html)
+            if (match != null) {
+                val jsonPart = "[${match.groupValues[1]}]"
+                val urls = jsonPart.split(",").map { it.trim('"') }
+                return urls.mapIndexed { i, url -> Page(i, imageUrl = url) }
+            }
+
+            throw Exception("No se encontraron imágenes en el capítulo.")
+        }
+
+        return images.mapIndexed { i, img ->
+            val url = img.attr("abs:data-src").ifEmpty { img.attr("abs:src") }
+            Page(i, imageUrl = url)
         }
     }
 
