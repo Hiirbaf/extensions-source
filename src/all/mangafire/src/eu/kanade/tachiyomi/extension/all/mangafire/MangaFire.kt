@@ -252,12 +252,6 @@ class MangaFire(
         throw Exception("No se encontraron imágenes en el capítulo.")
     }
 
-        return images.mapIndexed { i, img ->
-            val url = img.attr("abs:data-src").ifEmpty { img.attr("abs:src") }
-            Page(i, imageUrl = url)
-        }
-    }
-
     @Serializable
     class PageListDto(private val images: List<List<JsonPrimitive>>) {
         val pages
