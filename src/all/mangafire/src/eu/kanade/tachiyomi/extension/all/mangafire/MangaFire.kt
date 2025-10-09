@@ -228,28 +228,38 @@ class MangaFire(
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val html = response.body.string() // solo una lectura
+        val html = response.body.string()
         val document = Jsoup.parse(html, baseUrl)
 
-        val images = document.select("img.viewer-image, .page-image, .container-reader img[data-src], .container-reader img[src]")
+        // 1️⃣ Buscar el script con id="__NEXT_DATA__"
+        val script = document.selectFirst("script#__NEXT_DATA__")?.data()
+            ?: throw Exception("No se encontró el bloque __NEXT_DATA__")
 
-        if (images.isNotEmpty()) {
-            return images.mapIndexed { i, img ->
-                val url = img.attr("abs:data-src").ifEmpty { img.attr("abs:src") }
-                Page(i, imageUrl = url)
-            }
+        // 2️⃣ Parsear el JSON dentro del script
+        val root = json.parseToJsonElement(script)
+        val imagesJson = root
+            .jsonObject["props"]?.jsonObject
+            ?.get("pageProps")?.jsonObject
+            ?.get("chapter")?.jsonObject
+            ?.get("images")
+
+        if (imagesJson == null) {
+            throw Exception("No se encontró el array de imágenes en __NEXT_DATA__")
         }
 
-        // fallback: buscar JSON embebido con imágenes
-        val regex = Regex("""\"images\":\[(.*?)\]""")
-        val match = regex.find(html)
-        if (match != null) {
-            val jsonPart = "[${match.groupValues[1]}]"
-            val urls = jsonPart.split(",").map { it.trim('"') }
-            return urls.mapIndexed { i, url -> Page(i, imageUrl = url) }
+        // 3️⃣ Convertir a lista de URLs
+        val urls = imagesJson.jsonArray.mapNotNull {
+            it.toString().trim('"')
         }
 
-        throw Exception("No se encontraron imágenes en el capítulo.")
+        if (urls.isEmpty()) {
+            throw Exception("No se encontraron imágenes en el capítulo.")
+        }
+
+        // 4️⃣ Crear las páginas
+        return urls.mapIndexed { index, url ->
+            Page(index, imageUrl = url)
+        }
     }
 
     @Serializable
