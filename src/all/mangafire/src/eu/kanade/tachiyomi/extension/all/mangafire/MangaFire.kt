@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.all.mangafire
 
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlin.*
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import kotlinx.serialization.Serializable
