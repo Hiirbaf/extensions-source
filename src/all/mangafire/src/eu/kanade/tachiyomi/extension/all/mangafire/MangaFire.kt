@@ -25,7 +25,6 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import rx.Observable
 import uy.kohesive.injekt.injectLazy
-import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Locale
 
