@@ -117,7 +117,7 @@ class RemoteStorageUtils {
                     webView.clearCache(false)
                     webView.removeJavascriptInterface("android")
                     webView.loadUrl("about:blank")
-                    
+
                     webViewPool.add(
                         PoolEntry(
                             webView = webView,
@@ -250,7 +250,7 @@ class RemoteStorageUtils {
                 webView?.let { webview ->
                     webview.settings.userAgentString = request.header("User-Agent")
                     webview.addJavascriptInterface(jsInterface, "android")
-                    
+
                     webview.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String) {
                             view.evaluateJavascript(jsScript) {}
