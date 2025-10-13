@@ -66,27 +66,26 @@ class RemoteStorageUtils {
             }
 
             override fun onTrimMemory(level: Int) {
-                when {
-                    level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> {
-                        cleanup()
-                    }
-                    level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
-                        isInBackground = true
-                        cleanupIdleWebViews() // Limpieza inmediata con TTL reducido
-                    }
-                    level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
-                        isInBackground = true
-                        cleanupHandler.postDelayed({
-                            if (isInBackground) {
-                                cleanup()
-                            }
-                        }, 60 * 1000L,)
-                    }
-                    // ← Agregar esto:
-                    level <= ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
-                        // App volvió a foreground
+                when (level) {
+                    ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> cleanup()
+
+                    ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
+                    ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
+                        // App en foreground con presión de memoria
                         isInBackground = false
                         markActive()
+                    }
+
+                    ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
+                        isInBackground = true
+                        cleanupHandler.postDelayed({
+                            if (isInBackground) cleanup()
+                        }, 60 * 1000L,)
+                    }
+
+                    ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
+                        isInBackground = true
+                        cleanupIdleWebViews()
                     }
                 }
             }
