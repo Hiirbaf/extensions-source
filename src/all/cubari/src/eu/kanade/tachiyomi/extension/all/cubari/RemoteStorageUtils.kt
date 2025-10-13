@@ -70,7 +70,8 @@ class RemoteStorageUtils {
                     ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> cleanup()
 
                     ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
-                    ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
+                    ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE,
+                    -> {
                         // App en foreground con presión de memoria
                         isInBackground = false
                         markActive()
