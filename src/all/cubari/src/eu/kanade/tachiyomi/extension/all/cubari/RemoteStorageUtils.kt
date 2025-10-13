@@ -64,7 +64,7 @@ class RemoteStorageUtils {
             override fun onLowMemory() {
                 cleanup()
             }
-            
+
             override fun onTrimMemory(level: Int) {
                 when {
                     level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> {
@@ -84,7 +84,7 @@ class RemoteStorageUtils {
                             if (isInBackground) {
                                 cleanup()
                             }
-                        }, 60 * 1000L) // 1 minuto
+                        }, 60 * 1000L,)
                     }
                 }
             }
@@ -97,7 +97,7 @@ class RemoteStorageUtils {
             } catch (e: Exception) {
                 // Si falla, no es crítico
             }
-            
+
             // Inicia limpieza periódica
             cleanupHandler.postDelayed(cleanupRunnable, CLEANUP_INTERVAL)
         }
@@ -127,7 +127,7 @@ class RemoteStorageUtils {
                 isInactive() -> POOL_TTL_BACKGROUND // 30 segundos
                 else -> POOL_TTL_ACTIVE // 3 minutos
             }
-            
+
             val cutoffTime = System.currentTimeMillis() - ttl
             val iterator = webViewPool.iterator()
             var removed = 0
@@ -155,7 +155,7 @@ class RemoteStorageUtils {
         private fun getWebView(): WebView {
             // Marcar actividad
             markActive()
-            
+
             // Limpia WebViews antiguas antes de obtener una
             cleanupIdleWebViews()
 
@@ -361,7 +361,7 @@ class RemoteStorageUtils {
             // Devolver WebView al pool después de un pequeño delay
             handler.postDelayed({
                 webView?.let { returnWebView(it) }
-            }, DELAY_MILLIS / 2)
+            }, DELAY_MILLIS / 2,)
 
             return if (transparent) {
                 response
