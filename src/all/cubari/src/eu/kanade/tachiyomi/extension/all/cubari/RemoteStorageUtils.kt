@@ -90,6 +90,7 @@ class RemoteStorageUtils {
                     }
                 }
             }
+        }
 
         init {
             // Registrar callback de memoria
