@@ -67,7 +67,7 @@ open class Cubari(override val lang: String) : HttpSource() {
             .build()
             .newCall(latestUpdatesRequest(page))
             .asObservableSuccess()
-            .map { latestUpdatesParse(it) }
+            .map { response -> latestUpdatesParse(response) }
     }
 
     override fun latestUpdatesParse(response: Response): MangasPage {
@@ -83,7 +83,7 @@ open class Cubari(override val lang: String) : HttpSource() {
             .build()
             .newCall(popularMangaRequest(page))
             .asObservableSuccess()
-            .map { popularMangaParse(it) }
+            .map { response -> popularMangaParse(response) }
     }
 
     override fun popularMangaParse(response: Response): MangasPage {
@@ -94,11 +94,11 @@ open class Cubari(override val lang: String) : HttpSource() {
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
         return client.newCall(chapterListRequest(manga))
             .asObservableSuccess()
-            .map { mangaDetailsParse(it, manga) }
+            .map { response -> mangaDetailsParse(response, manga) }
     }
 
-    override fun mangaDetailsRequest(manga: SManga): Request =
-        GET("$baseUrl${manga.url}", headers)
+    // Called when the series is loaded, or when opening in browser
+    override fun mangaDetailsRequest(manga: SManga): Request = GET("$baseUrl${manga.url}", headers)
 
     override fun mangaDetailsParse(response: Response): SManga {
         throw UnsupportedOperationException()
@@ -112,15 +112,17 @@ open class Cubari(override val lang: String) : HttpSource() {
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
         return client.newCall(chapterListRequest(manga))
             .asObservable()
-            .map { chapterListParse(it, manga) }
+            .map { response -> chapterListParse(response, manga) }
     }
 
     // Gets the chapter list based on the series being viewed
     override fun chapterListRequest(manga: SManga): Request {
-        val urlComponents = manga.url.split("/")
-        val source = urlComponents[2]
-        val slug = urlComponents[3]
-
+        val urlComponents = manga.url.split("/").filter { it.isNotEmpty() }
+        if (urlComponents.size < 3) {
+            return GET("$baseUrl${manga.url}", headers)
+        }
+        val source = urlComponents[1]
+        val slug = urlComponents[2]
         return GET("$baseUrl/read/api/$source/series/$slug/", headers)
     }
 
@@ -139,11 +141,11 @@ open class Cubari(override val lang: String) : HttpSource() {
             chapter.url.contains("/chapter/") ->
                 client.newCall(pageListRequest(chapter))
                     .asObservableSuccess()
-                    .map { directPageListParse(it) }
+                    .map { response -> directPageListParse(response) }
             else ->
                 client.newCall(pageListRequest(chapter))
                     .asObservableSuccess()
-                    .map { seriesJsonPageListParse(it, chapter) }
+                    .map { response -> seriesJsonPageListParse(response, chapter) }
         }
     }
 
@@ -152,10 +154,10 @@ open class Cubari(override val lang: String) : HttpSource() {
             chapter.url.contains("/chapter/") ->
                 GET("$baseUrl${chapter.url}", headers)
             else -> {
-                val url = chapter.url.split("/")
-                val source = url[2]
-                val slug = url[3]
-
+                val url = chapter.url.split("/").filter { it.isNotEmpty() }
+                if (url.size < 3) return GET("$baseUrl${chapter.url}", headers)
+                val source = url[1]
+                val slug = url[2]
                 GET("$baseUrl/read/api/$source/series/$slug/", headers)
             }
         }
@@ -179,12 +181,14 @@ open class Cubari(override val lang: String) : HttpSource() {
     private fun seriesJsonPageListParse(response: Response, chapter: SChapter): List<Page> {
         val jsonObj = json.parseToJsonElement(response.body.string()).jsonObject
         val groups = jsonObj["groups"]!!.jsonObject
-        val groupMap = groups.entries.associateBy({ it.value.jsonPrimitive.content.ifEmpty { "default" } }, { it.key })
-        val chapterScanlator = chapter.scanlator ?: "default" // workaround for "" as group causing NullPointerException (#13772)
+        val groupMap = groups.entries.associateBy(
+            { it.value.jsonPrimitive.content.ifEmpty { "default" } },
+            { it.key },
+        )
+        val chapterScanlator = chapter.scanlator ?: "default"
 
         // prevent NullPointerException when chapters.key is 084 and chapter.chapter_number is 84
         val chapters = jsonObj["chapters"]!!.jsonObject.let { chaptersObj ->
-            // Crear mapa normalizado una sola vez
             chaptersObj.entries.associateBy(
                 { it.key.replace(Regex("^0+(?!$)"), "") },
                 { it.value },
@@ -195,8 +199,10 @@ open class Cubari(override val lang: String) : HttpSource() {
         val chapterData = chapters[chapterKey] ?: chapters[chapter.chapter_number.toInt().toString()]
 
         val pages = chapterData
-            ?.jsonObject?.get("groups")
-            ?.jsonObject?.get(groupMap[chapterScanlator])
+            ?.jsonObject
+            ?.get("groups")
+            ?.jsonObject
+            ?.get(groupMap[chapterScanlator])
             ?.jsonArray
             ?: return emptyList()
 
@@ -228,7 +234,7 @@ open class Cubari(override val lang: String) : HttpSource() {
                         .build()
                         .newCall(proxySearchRequest(trimmedQuery))
                         .asObservableSuccess()
-                        .map { proxySearchParse(it, trimmedQuery) }
+                        .map { response -> proxySearchParse(response, trimmedQuery) }
                 }
             }
             query.isBlank() -> {
@@ -240,7 +246,7 @@ open class Cubari(override val lang: String) : HttpSource() {
                     .build()
                     .newCall(searchMangaRequest(page, query, filters))
                     .asObservableSuccess()
-                    .map { searchMangaParse(it, query) }
+                    .map { response -> searchMangaParse(response, query) }
                     .map { mangasPage ->
                         if (mangasPage.mangas.isEmpty()) {
                             throw Exception(SEARCH_FALLBACK_MSG)
@@ -251,13 +257,15 @@ open class Cubari(override val lang: String) : HttpSource() {
         }
     }
 
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
-        GET("$baseUrl/", headers)
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = GET("$baseUrl/", headers)
 
     private fun proxySearchRequest(query: String): Request {
-        val queryFragments = query.split("/")
-        val source = queryFragments[0]
-        val slug = queryFragments[1]
+        val fragments = query.split("/")
+        if (fragments.size < 2 || fragments[0].isBlank() || fragments[1].isBlank()) {
+            throw Exception(SEARCH_FALLBACK_MSG)
+        }
+        val source = fragments[0]
+        val slug = fragments[1]
         return GET("$baseUrl/read/api/$source/series/$slug/", headers)
     }
 
@@ -359,14 +367,11 @@ open class Cubari(override val lang: String) : HttpSource() {
             val jsonObj = jsonEl.jsonObject
             val pinned = jsonObj["pinned"]!!.jsonPrimitive.boolean
 
-            if (sortType == SortType.PINNED && pinned) {
-                parseManga(jsonObj)
-            } else if (sortType == SortType.UNPINNED && !pinned) {
-                parseManga(jsonObj)
-            } else if (sortType == SortType.ALL) {
-                parseManga(jsonObj)
-            } else {
-                null
+            when {
+                sortType == SortType.PINNED && pinned -> parseManga(jsonObj)
+                sortType == SortType.UNPINNED && !pinned -> parseManga(jsonObj)
+                sortType == SortType.ALL -> parseManga(jsonObj)
+                else -> null
             }
         }
 
