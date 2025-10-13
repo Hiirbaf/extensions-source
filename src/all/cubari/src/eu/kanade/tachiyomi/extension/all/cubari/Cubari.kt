@@ -58,7 +58,6 @@ open class Cubari(override val lang: String) : HttpSource() {
         )
     }
 
-
     override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/", headers)
 
     override fun fetchLatestUpdates(page: Int): Observable<MangasPage> {
