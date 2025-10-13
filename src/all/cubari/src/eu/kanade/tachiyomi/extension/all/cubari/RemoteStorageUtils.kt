@@ -2,6 +2,8 @@ package eu.kanade.tachiyomi.extension.all.cubari
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.ComponentCallbacks2
+import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
 import android.webkit.JavascriptInterface
@@ -23,13 +25,17 @@ class RemoteStorageUtils {
     companion object {
         const val TIMEOUT_SEC: Long = 8
         const val DELAY_MILLIS: Long = 5000
-        const val CACHE_DURATION = 5 * 60 * 1000L // 5 minutos
-        const val POOL_TTL = 3 * 60 * 1000L // 3 minutos sin uso
-        const val CLEANUP_INTERVAL = 2 * 60 * 1000L // Limpieza cada 2 minutos
+        const val CACHE_DURATION = 5 * 60 * 1000L
+        const val POOL_TTL_ACTIVE = 3 * 60 * 1000L
+        const val POOL_TTL_BACKGROUND = 30 * 1000L
+        const val CLEANUP_INTERVAL = 30 * 1000L
 
         private val responseCache = ConcurrentHashMap<String, CacheEntry>()
         private val webViewPool = mutableListOf<PoolEntry>()
         private const val MAX_POOL_SIZE = 2
+        
+        private var isInBackground = false
+        private var lastActivityTimestamp = System.currentTimeMillis()
 
         data class CacheEntry(
             val response: String,
@@ -40,6 +46,7 @@ class RemoteStorageUtils {
             val webView: WebView,
             var lastUsed: Long,
             var useCount: Int = 0,
+            val createdAt: Long = System.currentTimeMillis(),
         )
 
         private val cleanupHandler = Handler(Looper.getMainLooper())
@@ -50,14 +57,78 @@ class RemoteStorageUtils {
             }
         }
 
+        // Memory callback para detectar presión de memoria
+        private val memoryCallback = object : ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: Configuration) {}
+            
+            override fun onLowMemory() {
+                cleanup()
+            }
+            
+            override fun onTrimMemory(level: Int) {
+                when {
+                    level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> {
+                        // App en foreground pero sistema necesita memoria urgentemente
+                        cleanup()
+                    }
+                    level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
+                        // App en background
+                        isInBackground = true
+                        cleanupIdleWebViews() // Limpieza inmediata con TTL reducido
+                    }
+                    level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
+                        // UI no visible
+                        isInBackground = true
+                        // Programar limpieza agresiva
+                        cleanupHandler.postDelayed({
+                            if (isInBackground) {
+                                cleanup()
+                            }
+                        }, 60 * 1000L) // 1 minuto
+                    }
+                }
+            }
+        }
+
         init {
+            // Registrar callback de memoria
+            try {
+                Injekt.get<Application>().registerComponentCallbacks(memoryCallback)
+            } catch (e: Exception) {
+                // Si falla, no es crítico
+            }
+            
             // Inicia limpieza periódica
             cleanupHandler.postDelayed(cleanupRunnable, CLEANUP_INTERVAL)
         }
 
+        /**
+         * Llamar cuando se usa la extensión activamente
+         */
+        @Synchronized
+        fun markActive() {
+            isInBackground = false
+            lastActivityTimestamp = System.currentTimeMillis()
+        }
+
+        /**
+         * Detecta automáticamente si estamos inactivos
+         */
+        private fun isInactive(): Boolean {
+            val inactiveTime = System.currentTimeMillis() - lastActivityTimestamp
+            return inactiveTime > 60 * 1000L // 1 minuto sin actividad
+        }
+
         @Synchronized
         private fun cleanupIdleWebViews() {
-            val cutoffTime = System.currentTimeMillis() - POOL_TTL
+            // TTL dinámico basado en el estado
+            val ttl = when {
+                isInBackground -> POOL_TTL_BACKGROUND // 30 segundos
+                isInactive() -> POOL_TTL_BACKGROUND // 30 segundos
+                else -> POOL_TTL_ACTIVE // 3 minutos
+            }
+            
+            val cutoffTime = System.currentTimeMillis() - ttl
             val iterator = webViewPool.iterator()
             var removed = 0
 
@@ -75,12 +146,16 @@ class RemoteStorageUtils {
             }
 
             if (removed > 0) {
-                println("RemoteStorageUtils: Cleaned up $removed idle WebView(s)")
+                val state = if (isInBackground) "background" else if (isInactive()) "inactive" else "active"
+                println("RemoteStorageUtils: Cleaned up $removed idle WebView(s) [state: $state]")
             }
         }
 
         @Synchronized
         private fun getWebView(): WebView {
+            // Marcar actividad
+            markActive()
+            
             // Limpia WebViews antiguas antes de obtener una
             cleanupIdleWebViews()
 
@@ -168,9 +243,6 @@ class RemoteStorageUtils {
          */
         @Synchronized
         fun cleanup() {
-            // Detener limpieza automática
-            cleanupHandler.removeCallbacks(cleanupRunnable)
-
             // Destruir todas las WebViews del pool
             webViewPool.forEach { entry ->
                 try {
@@ -185,9 +257,6 @@ class RemoteStorageUtils {
             responseCache.clear()
 
             println("RemoteStorageUtils: Full cleanup completed")
-
-            // Reiniciar limpieza automática
-            cleanupHandler.postDelayed(cleanupRunnable, CLEANUP_INTERVAL)
         }
 
         /**
@@ -195,7 +264,21 @@ class RemoteStorageUtils {
          */
         @Synchronized
         fun getPoolStats(): String {
-            return "WebView Pool: ${webViewPool.size}/$MAX_POOL_SIZE | Cache: ${responseCache.size} entries"
+            val state = if (isInBackground) "background" else if (isInactive()) "inactive" else "active"
+            return "WebView Pool: ${webViewPool.size}/$MAX_POOL_SIZE | Cache: ${responseCache.size} entries | State: $state"
+        }
+
+        /**
+         * Limpieza completa al cerrar
+         */
+        fun shutdown() {
+            try {
+                cleanupHandler.removeCallbacks(cleanupRunnable)
+                Injekt.get<Application>().unregisterComponentCallbacks(memoryCallback)
+                cleanup()
+            } catch (e: Exception) {
+                // Ignorar errores
+            }
         }
     }
 
@@ -278,7 +361,7 @@ class RemoteStorageUtils {
             // Devolver WebView al pool después de un pequeño delay
             handler.postDelayed({
                 webView?.let { returnWebView(it) }
-            }, DELAY_MILLIS / 2,)
+            }, DELAY_MILLIS / 2)
 
             return if (transparent) {
                 response
