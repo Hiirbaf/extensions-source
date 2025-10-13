@@ -31,7 +31,9 @@ import uy.kohesive.injekt.injectLazy
 open class Cubari(override val lang: String) : HttpSource() {
 
     final override val name = "Cubari"
+
     final override val baseUrl = "https://cubari.moe"
+
     final override val supportsLatest = true
 
     private val json: Json by injectLazy()
@@ -56,7 +58,6 @@ open class Cubari(override val lang: String) : HttpSource() {
         )
     }
 
-    // ------------------- Latest & Popular -------------------
 
     override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/", headers)
 
@@ -90,8 +91,6 @@ open class Cubari(override val lang: String) : HttpSource() {
         return parseMangaList(result, SortType.PINNED)
     }
 
-    // ------------------- Manga Details -------------------
-
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
         return client.newCall(chapterListRequest(manga))
             .asObservableSuccess()
@@ -110,18 +109,18 @@ open class Cubari(override val lang: String) : HttpSource() {
         return parseManga(result, manga)
     }
 
-    // ------------------- Chapter List -------------------
-
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
         return client.newCall(chapterListRequest(manga))
             .asObservable()
             .map { chapterListParse(it, manga) }
     }
 
+    // Gets the chapter list based on the series being viewed
     override fun chapterListRequest(manga: SManga): Request {
         val urlComponents = manga.url.split("/")
         val source = urlComponents[2]
         val slug = urlComponents[3]
+
         return GET("$baseUrl/read/api/$source/series/$slug/", headers)
     }
 
@@ -129,12 +128,11 @@ open class Cubari(override val lang: String) : HttpSource() {
         throw Exception("Unused")
     }
 
+    // Called after the request
     private fun chapterListParse(response: Response, manga: SManga): List<SChapter> {
         val res = response.body.string()
         return parseChapterList(res, manga)
     }
-
-    // ------------------- Pages -------------------
 
     override fun fetchPageList(chapter: SChapter): Observable<List<Page>> {
         return when {
@@ -157,6 +155,7 @@ open class Cubari(override val lang: String) : HttpSource() {
                 val url = chapter.url.split("/")
                 val source = url[2]
                 val slug = url[3]
+
                 GET("$baseUrl/read/api/$source/series/$slug/", headers)
             }
         }
@@ -165,12 +164,14 @@ open class Cubari(override val lang: String) : HttpSource() {
     private fun directPageListParse(response: Response): List<Page> {
         val res = response.body.string()
         val pages = json.parseToJsonElement(res).jsonArray
+
         return pages.mapIndexed { i, jsonEl ->
             val page = if (jsonEl is JsonObject) {
                 jsonEl.jsonObject["src"]!!.jsonPrimitive.content
             } else {
                 jsonEl.jsonPrimitive.content
             }
+
             Page(i, "", page)
         }
     }
@@ -178,12 +179,10 @@ open class Cubari(override val lang: String) : HttpSource() {
     private fun seriesJsonPageListParse(response: Response, chapter: SChapter): List<Page> {
         val jsonObj = json.parseToJsonElement(response.body.string()).jsonObject
         val groups = jsonObj["groups"]!!.jsonObject
-        val groupMap = groups.entries.associateBy(
-            { it.value.jsonPrimitive.content.ifEmpty { "default" } },
-            { it.key },
-        )
-        val chapterScanlator = chapter.scanlator ?: "default"
+        val groupMap = groups.entries.associateBy({ it.value.jsonPrimitive.content.ifEmpty { "default" } }, { it.key })
+        val chapterScanlator = chapter.scanlator ?: "default" // workaround for "" as group causing NullPointerException (#13772)
 
+        // prevent NullPointerException when chapters.key is 084 and chapter.chapter_number is 84
         val chapters = jsonObj["chapters"]!!.jsonObject.let { chaptersObj ->
             // Crear mapa normalizado una sola vez
             chaptersObj.entries.associateBy(
@@ -207,15 +206,15 @@ open class Cubari(override val lang: String) : HttpSource() {
             } else {
                 jsonEl.jsonPrimitive.content
             }
+
             Page(i, "", page)
         }
     }
 
+    // Stub
     override fun pageListParse(response: Response): List<Page> {
         throw Exception("Unused")
     }
-
-    // ------------------- Search -------------------
 
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
         return when {
@@ -276,8 +275,9 @@ open class Cubari(override val lang: String) : HttpSource() {
                 val title = jsonObj["title"]?.jsonPrimitive?.content?.lowercase() ?: ""
                 title.contains(normalizedQuery)
             }
-            .take(50) // Limitar resultados para mejor rendimiento
+            .take(50)
             .toList()
+
         return parseMangaList(JsonArray(filterList), SortType.ALL)
     }
 
@@ -286,11 +286,9 @@ open class Cubari(override val lang: String) : HttpSource() {
         return parseSearchList(result, query)
     }
 
-    // ------------------- Helpers -------------------
+    // ------------- Helpers and whatnot ---------------
 
     private val volumeNotSpecifiedTerms = setOf("Uncategorized", "null", "")
-
-    // (Los métodos parseMangaList, parseSearchList, parseManga, parseChapterList los dejas igual)
 
     private fun parseChapterList(payload: String, manga: SManga): List<SChapter> {
         val jsonObj = json.parseToJsonElement(payload).jsonObject
@@ -301,7 +299,6 @@ open class Cubari(override val lang: String) : HttpSource() {
         val seriesPrefs = Injekt.get<Application>().getSharedPreferences("source_${id}_updateTime:$seriesSlug", 0)
         val currentTimeMillis = System.currentTimeMillis()
 
-        // Obtener todos los valores de una vez para evitar múltiples accesos al disco
         val existingTimestamps = mutableMapOf<String, Long>()
         val seriesPrefsEditor = seriesPrefs.edit()
         var hasNewChapters = false
@@ -350,7 +347,6 @@ open class Cubari(override val lang: String) : HttpSource() {
             }
         }.toList()
 
-        // Solo aplicar cambios si hay capítulos nuevos
         if (hasNewChapters) {
             seriesPrefsEditor.apply()
         }
@@ -408,7 +404,7 @@ open class Cubari(override val lang: String) : HttpSource() {
                 ?: jsonObj["cover"]?.jsonPrimitive?.content ?: ""
         }
 
-    // ------------------- Stubs -------------------
+    // ----------------- Things we aren't supporting -----------------
 
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException()
@@ -419,11 +415,12 @@ open class Cubari(override val lang: String) : HttpSource() {
         const val AUTHOR_FALLBACK = "Unknown"
         const val ARTIST_FALLBACK = "Unknown"
         const val DESCRIPTION_FALLBACK = "No description."
-        const val SEARCH_FALLBACK_MSG =
-            "Unable to parse. Is your query in the format of $PROXY_PREFIX<source>/<slug>?"
+        const val SEARCH_FALLBACK_MSG = "Unable to parse. Is your query in the format of $PROXY_PREFIX<source>/<slug>?"
 
         enum class SortType {
-            PINNED, UNPINNED, ALL
+            PINNED,
+            UNPINNED,
+            ALL,
         }
     }
 }
