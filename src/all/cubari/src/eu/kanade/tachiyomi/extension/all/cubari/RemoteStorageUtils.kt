@@ -33,7 +33,7 @@ class RemoteStorageUtils {
         private val responseCache = ConcurrentHashMap<String, CacheEntry>()
         private val webViewPool = mutableListOf<PoolEntry>()
         private const val MAX_POOL_SIZE = 2
-        
+
         private var isInBackground = false
         private var lastActivityTimestamp = System.currentTimeMillis()
 
@@ -60,7 +60,7 @@ class RemoteStorageUtils {
         // Memory callback para detectar presión de memoria
         private val memoryCallback = object : ComponentCallbacks2 {
             override fun onConfigurationChanged(newConfig: Configuration) {}
-            
+
             override fun onLowMemory() {
                 cleanup()
             }
