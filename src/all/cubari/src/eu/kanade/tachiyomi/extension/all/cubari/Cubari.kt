@@ -232,18 +232,39 @@ open class Cubari(override val lang: String) : HttpSource() {
     }
 
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
-        if (query.startsWith(PROXY_PREFIX)) {
-            val slug = query.removePrefix(PROXY_PREFIX).trim()
-            if (slug.isEmpty()) return Observable.just(MangasPage(emptyList(), false))
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isEmpty()) return Observable.just(MangasPage(emptyList(), false))
 
-            val manga = SManga.create().apply { url = "$PROXY_PREFIX$slug" }
-            val mangaList = listOf(fetchMangaDetails(manga).toBlocking().first())
+        if (trimmedQuery.startsWith(PROXY_PREFIX)) {
+            val slugs = trimmedQuery.removePrefix(PROXY_PREFIX).split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-            return Observable.just(MangasPage(mangaList, false))
+            val observables = slugs.map { slug ->
+                val urlQuery = "$PROXY_PREFIX$slug"
+                client.newBuilder()
+                    .addInterceptor(RemoteStorageUtils.TagInterceptor())
+                    .build()
+                    .newCall(proxySearchRequest(slug))
+                    .asObservableSuccess()
+                    .map { response -> proxySearchParse(response, slug) }
+            }
+
+            return Observable.zip(observables) { results ->
+                val mangas = results.flatMap { (it as MangasPage).mangas }
+                MangasPage(mangas, false)
+            }
         }
 
         // Búsqueda normal
-        return super.fetchSearchManga(page, query, filters)
+        return client.newBuilder()
+            .addInterceptor(RemoteStorageUtils.HomeInterceptor())
+            .build()
+            .newCall(searchMangaRequest(page, query, filters))
+            .asObservableSuccess()
+            .map { response -> searchMangaParse(response, query) }
+            .map { mangasPage ->
+                if (mangasPage.mangas.isEmpty()) throw Exception(SEARCH_FALLBACK_MSG)
+                mangasPage
+            }
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
