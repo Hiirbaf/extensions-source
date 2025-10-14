@@ -291,17 +291,17 @@ open class Cubari(override val lang: String) : HttpSource() {
             try {
                 // Obtener el título real desde Cubari
                 val response = client.newCall(
-                    GET("$baseUrl/read/api/gist/series/$slug/", headers)
+                    GET("$baseUrl/read/api/gist/series/$slug/", headers),
                 ).execute()
 
                 jsonObj = json.parseToJsonElement(response.body.string()).jsonObject
                 val title = jsonObj["title"]?.jsonPrimitive?.content ?: "Unknown"
-                val coverUrl = jsonObj["coverUrl"]?.jsonPrimitive?.content 
+                val coverUrl = jsonObj["coverUrl"]?.jsonPrimitive?.content
                     ?: jsonObj["cover"]?.jsonPrimitive?.content ?: ""
                 val author = jsonObj["author"]?.jsonPrimitive?.content ?: ""
                 val artist = jsonObj["artist"]?.jsonPrimitive?.content ?: ""
                 val description = jsonObj["description"]?.jsonPrimitive?.content ?: ""
-    
+
                 val manga = SManga.create().apply {
                     this.title = title
                     this.url = "/read/gist/$slug"
