@@ -287,9 +287,16 @@ open class Cubari(override val lang: String) : HttpSource() {
         } catch (e: Exception) {
             query
         }
+    
+        // Limpiar rutas de GitHub
+        val cleanPath = decodedQuery
+            .replace("refs/heads/", "")
+            .replace("refs/remotes/origin/", "")
 
-        val url = "https://raw.githubusercontent.com/$decodedQuery"
+        val url = "https://raw.githubusercontent.com/$cleanPath"
 
+        println("batchSearchRequest URL: $url")
+    
         return GET(url, headers)
     }
 
