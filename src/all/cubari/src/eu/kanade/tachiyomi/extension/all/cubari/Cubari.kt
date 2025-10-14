@@ -233,6 +233,17 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
         return when {
+            query.contains("cubari:gist/") -> {
+                // Detecta múltiples URLs cubari:gist/... en la misma búsqueda
+                val mangaList = mutableListOf<SManga>()
+                parseMultipleCubariUrls(query, mangaList)
+
+                return if (mangaList.isEmpty()) {
+                    Observable.just(MangasPage(emptyList(), false))
+                } else {
+                    Observable.just(MangasPage(mangaList, false))
+                }
+            }
             query.startsWith(PROXY_PREFIX) -> {
                 val trimmedQuery = query.removePrefix(PROXY_PREFIX)
                 // Only tag for recently read on search
@@ -269,6 +280,24 @@ open class Cubari(override val lang: String) : HttpSource() {
         }
     }
 
+    private fun parseMultipleCubariUrls(query: String, mangaList: MutableList<SManga>) {
+        // Busca patrones: cubari:gist/[base64]
+        val cubariPattern = Regex("cubari:gist/([a-zA-Z0-9_=-]+)")
+        val matches = cubariPattern.findAll(query)
+
+        matches.forEach { match ->
+            val slug = match.groupValues[1]
+            val manga = SManga.create().apply {
+                url = "/read/gist/$slug"
+                title = "Manga - ${slug.take(20)}"
+                thumbnail_url = ""
+                author = ""
+                artist = ""
+                description = ""
+            }
+            mangaList.add(manga)
+        }
+    }
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         return GET("$baseUrl/", headers)
     }
