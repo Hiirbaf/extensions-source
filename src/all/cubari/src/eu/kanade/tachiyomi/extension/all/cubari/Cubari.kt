@@ -231,6 +231,18 @@ open class Cubari(override val lang: String) : HttpSource() {
         throw Exception("Unused")
     }
 
+    private val homeClient by lazy {
+        client.newBuilder()
+            .addInterceptor(RemoteStorageUtils.HomeInterceptor())
+            .build()
+    }
+
+    private val tagClient by lazy {
+        client.newBuilder()
+            .addInterceptor(RemoteStorageUtils.TagInterceptor())
+            .build()
+    }
+
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
         val trimmedQuery = query.trim()
         if (trimmedQuery.isEmpty()) return Observable.just(MangasPage(emptyList(), false))
@@ -239,11 +251,7 @@ open class Cubari(override val lang: String) : HttpSource() {
             val slugs = trimmedQuery.removePrefix(PROXY_PREFIX).split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
             val observables = slugs.map { slug ->
-                val urlQuery = "$PROXY_PREFIX$slug"
-                client.newBuilder()
-                    .addInterceptor(RemoteStorageUtils.TagInterceptor())
-                    .build()
-                    .newCall(proxySearchRequest(slug))
+                tagClient.newCall(proxySearchRequest(slug))
                     .asObservableSuccess()
                     .map { response -> proxySearchParse(response, slug) }
             }
@@ -255,10 +263,7 @@ open class Cubari(override val lang: String) : HttpSource() {
         }
 
         // Búsqueda normal
-        return client.newBuilder()
-            .addInterceptor(RemoteStorageUtils.HomeInterceptor())
-            .build()
-            .newCall(searchMangaRequest(page, query, filters))
+        return homeClient.newCall(searchMangaRequest(page, query, filters))
             .asObservableSuccess()
             .map { response -> searchMangaParse(response, query) }
             .map { mangasPage ->
