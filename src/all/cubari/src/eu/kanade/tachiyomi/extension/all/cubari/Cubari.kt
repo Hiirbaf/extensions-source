@@ -281,7 +281,6 @@ open class Cubari(override val lang: String) : HttpSource() {
     // Agregar estos métodos a tu clase Cubari
 
     private fun batchSearchRequest(query: String): Request {
-
         val decodedQuery = try {
             val decoded = android.util.Base64.decode(query, android.util.Base64.DEFAULT)
             String(decoded, Charsets.UTF_8)
