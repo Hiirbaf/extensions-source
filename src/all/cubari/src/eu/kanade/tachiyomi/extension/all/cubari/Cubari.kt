@@ -293,7 +293,7 @@ open class Cubari(override val lang: String) : HttpSource() {
             // URL directa
             query
         }
-    
+
         return GET(url, headers)
     }
 
@@ -336,8 +336,8 @@ open class Cubari(override val lang: String) : HttpSource() {
                             else -> "/read/$urlValue"
                         }
 
-                        thumbnail_url = item["cover"]?.jsonPrimitive?.content 
-                            ?: item["coverUrl"]?.jsonPrimitive?.content 
+                        thumbnail_url = item["cover"]?.jsonPrimitive?.content
+                            ?: item["coverUrl"]?.jsonPrimitive?.content
                             ?: item["thumbnail_url"]?.jsonPrimitive?.content ?: ""
 
                         artist = item["artist"]?.jsonPrimitive?.content ?: ""
