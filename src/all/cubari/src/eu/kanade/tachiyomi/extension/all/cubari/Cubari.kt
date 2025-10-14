@@ -389,7 +389,7 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     private fun parseTextBatch(textContent: String, mangaList: MutableList<SManga>) {
         // Buscar patrones: cubari:gist/[base64]
-        val cubariPattern = Regex("cubari:gist/([a-zA-Z0-9_=-]+)")
+        val cubariPattern = Regex("cubari:gist/([^\\s]+)")
         val matches = cubariPattern.findAll(textContent)
 
         matches.forEach { match ->
