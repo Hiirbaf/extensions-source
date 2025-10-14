@@ -137,21 +137,28 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     override fun fetchPageList(chapter: SChapter): Observable<List<Page>> {
         return when {
-            chapter.url.contains("/chapter/") ->
+            chapter.url.contains("/chapter/") -> {
                 client.newCall(pageListRequest(chapter))
                     .asObservableSuccess()
-                    .map { response -> directPageListParse(response) }
-            else ->
+                    .map { response ->
+                        directPageListParse(response)
+                    }
+            }
+            else -> {
                 client.newCall(pageListRequest(chapter))
                     .asObservableSuccess()
-                    .map { response -> seriesJsonPageListParse(response, chapter) }
+                    .map { response ->
+                        seriesJsonPageListParse(response, chapter)
+                    }
+            }
         }
     }
 
     override fun pageListRequest(chapter: SChapter): Request {
         return when {
-            chapter.url.contains("/chapter/") ->
+            chapter.url.contains("/chapter/") -> {
                 GET("$baseUrl${chapter.url}", headers)
+            }
             else -> {
                 val url = chapter.url.split("/").filter { it.isNotEmpty() }
                 if (url.size < 3) return GET("$baseUrl${chapter.url}", headers)
@@ -180,11 +187,8 @@ open class Cubari(override val lang: String) : HttpSource() {
     private fun seriesJsonPageListParse(response: Response, chapter: SChapter): List<Page> {
         val jsonObj = json.parseToJsonElement(response.body.string()).jsonObject
         val groups = jsonObj["groups"]!!.jsonObject
-        val groupMap = groups.entries.associateBy(
-            { it.value.jsonPrimitive.content.ifEmpty { "default" } },
-            { it.key },
-        )
-        val chapterScanlator = chapter.scanlator ?: "default"
+        val groupMap = groups.entries.associateBy({ it.value.jsonPrimitive.content.ifEmpty { "default" } }, { it.key })
+        val chapterScanlator = chapter.scanlator ?: "default" // workaround for "" as group causing NullPointerException (#13772)
 
         // prevent NullPointerException when chapters.key is 084 and chapter.chapter_number is 84
         val chapters = jsonObj["chapters"]!!.jsonObject.let { chaptersObj ->
@@ -225,6 +229,7 @@ open class Cubari(override val lang: String) : HttpSource() {
         return when {
             query.startsWith(PROXY_PREFIX) -> {
                 val trimmedQuery = query.removePrefix(PROXY_PREFIX)
+                // Only tag for recently read on search
                 if (trimmedQuery.isBlank()) {
                     Observable.just(MangasPage(emptyList(), false))
                 } else {
@@ -245,7 +250,9 @@ open class Cubari(override val lang: String) : HttpSource() {
                     .build()
                     .newCall(searchMangaRequest(page, query, filters))
                     .asObservableSuccess()
-                    .map { response -> searchMangaParse(response, query) }
+                    .map { response ->
+                        searchMangaParse(response, query)
+                    }
                     .map { mangasPage ->
                         if (mangasPage.mangas.isEmpty()) {
                             throw Exception(SEARCH_FALLBACK_MSG)
@@ -259,12 +266,12 @@ open class Cubari(override val lang: String) : HttpSource() {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = GET("$baseUrl/", headers)
 
     private fun proxySearchRequest(query: String): Request {
-        val fragments = query.split("/")
-        if (fragments.size < 2 || fragments[0].isBlank() || fragments[1].isBlank()) {
+        val queryFragments = query.split("/")
+        if (queryFragments.size < 2 || queryFragments[0].isBlank() || queryFragments[1].isBlank()) {
             throw Exception(SEARCH_FALLBACK_MSG)
         }
-        val source = fragments[0]
-        val slug = fragments[1]
+        val source = queryFragments[0]
+        val slug = queryFragments[1]
         return GET("$baseUrl/read/api/$source/series/$slug/", headers)
     }
 
