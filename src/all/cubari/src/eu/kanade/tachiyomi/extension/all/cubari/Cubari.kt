@@ -302,6 +302,12 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     private fun batchSearchParse(response: Response, query: String): MangasPage {
         val content = response.body.string()
+
+        println("=== batchSearchParse ===")
+        println("Content length: ${content.length}")
+        println("Content:\n$content")
+        println("========================")
+
         val mangaList = mutableListOf<SManga>()
 
         try {
@@ -313,10 +319,12 @@ open class Cubari(override val lang: String) : HttpSource() {
                 parseTextBatch(content, mangaList)
             }
         } catch (e: Exception) {
-            println("Batch parse error: ${e.message}")
+            println("Error: ${e.message}")
             // Fallback: intentar extraer URLs de cualquier formato
             parseTextBatch(content, mangaList)
         }
+
+        println("Mangas encontrados: ${mangaList.size}")
 
         return MangasPage(mangaList, false)
     }
