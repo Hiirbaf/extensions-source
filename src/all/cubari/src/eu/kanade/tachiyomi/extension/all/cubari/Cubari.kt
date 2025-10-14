@@ -255,9 +255,8 @@ open class Cubari(override val lang: String) : HttpSource() {
                     tagClient.newCall(proxySearchRequest(slug))
                         .asObservableSuccess()
                         .map { response -> proxySearchParse(response, slug).mangas }
-                        // Emitimos solo la lista de mangas de cada slug
                 }
-                .toList() // Combina todas las listas de mangas
+                .toList()
                 .map { lists ->
                     val allMangas = lists.flatten()
                     MangasPage(allMangas, false)
