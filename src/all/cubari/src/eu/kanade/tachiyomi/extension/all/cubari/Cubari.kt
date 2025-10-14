@@ -232,60 +232,18 @@ open class Cubari(override val lang: String) : HttpSource() {
     }
 
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
-        // --- Caso: múltiples "cubari:gist/slug" en una sola búsqueda ---
-        if (query.contains("cubari:gist/")) {
-            val matches = Regex("cubari:gist/([a-zA-Z0-9_=-]+)").findAll(query).toList()
-
-            // Si hay más de uno, procesar cada uno individualmente como antes
-            if (matches.size > 1) {
-                val observables = matches.map { match ->
-                    val slug = match.groupValues[1]
-                    val singleQuery = "cubari:gist/$slug"
-                    // Reutilizamos el mismo método recursivamente para no duplicar lógica
-                    fetchSearchManga(page, singleQuery, filters)
-                }
-
-                // Combinamos los resultados en una sola página
-                return Observable.zip(observables) { results ->
-                    val mangas = results.flatMap { (it as MangasPage).mangas }
-                    MangasPage(mangas, false)
-                }
-            }
-        }
-
-        // --- Caso original: un solo "cubari:gist/slug" o proxy normal ---
         if (query.startsWith(PROXY_PREFIX)) {
-            val trimmedQuery = query.removePrefix(PROXY_PREFIX)
-            if (trimmedQuery.isBlank()) {
-                return Observable.just(MangasPage(emptyList(), false))
-            }
+            val slug = query.removePrefix(PROXY_PREFIX).trim()
+            if (slug.isEmpty()) return Observable.just(MangasPage(emptyList(), false))
 
-            return client.newBuilder()
-                .addInterceptor(RemoteStorageUtils.TagInterceptor())
-                .build()
-                .newCall(proxySearchRequest(trimmedQuery))
-                .asObservableSuccess()
-                .map { response -> proxySearchParse(response, trimmedQuery) }
+            val manga = SManga.create().apply { url = "$PROXY_PREFIX$slug" }
+            val mangaList = listOf(fetchMangaDetails(manga).toBlocking().first())
+
+            return Observable.just(MangasPage(mangaList, false))
         }
 
-        // --- Caso búsqueda vacía ---
-        if (query.isBlank()) {
-            return Observable.just(MangasPage(emptyList(), false))
-        }
-
-        // --- Caso búsqueda normal ---
-        return client.newBuilder()
-            .addInterceptor(RemoteStorageUtils.HomeInterceptor())
-            .build()
-            .newCall(searchMangaRequest(page, query, filters))
-            .asObservableSuccess()
-            .map { response -> searchMangaParse(response, query) }
-            .map { mangasPage ->
-                if (mangasPage.mangas.isEmpty()) {
-                    throw Exception(SEARCH_FALLBACK_MSG)
-                }
-                mangasPage
-            }
+        // Búsqueda normal
+        return super.fetchSearchManga(page, query, filters)
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
