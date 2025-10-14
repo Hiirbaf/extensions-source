@@ -58,7 +58,9 @@ open class Cubari(override val lang: String) : HttpSource() {
         )
     }
 
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/", headers)
+    override fun latestUpdatesRequest(page: Int): Request {
+        return GET("$baseUrl/", headers)
+    }
 
     override fun fetchLatestUpdates(page: Int): Observable<MangasPage> {
         return client.newBuilder()
@@ -74,7 +76,9 @@ open class Cubari(override val lang: String) : HttpSource() {
         return parseMangaList(result, SortType.UNPINNED)
     }
 
-    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/", headers)
+    override fun popularMangaRequest(page: Int): Request {
+        return GET("$baseUrl/", headers)
+    }
 
     override fun fetchPopularManga(page: Int): Observable<MangasPage> {
         return client.newBuilder()
@@ -97,7 +101,9 @@ open class Cubari(override val lang: String) : HttpSource() {
     }
 
     // Called when the series is loaded, or when opening in browser
-    override fun mangaDetailsRequest(manga: SManga): Request = GET("$baseUrl${manga.url}", headers)
+    override fun mangaDetailsRequest(manga: SManga): Request {
+        return GET("$baseUrl${manga.url}", headers)
+    }
 
     override fun mangaDetailsParse(response: Response): SManga {
         throw UnsupportedOperationException()
@@ -263,7 +269,9 @@ open class Cubari(override val lang: String) : HttpSource() {
         }
     }
 
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = GET("$baseUrl/", headers)
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        return GET("$baseUrl/", headers)
+    }
 
     private fun proxySearchRequest(query: String): Request {
         val queryFragments = query.split("/")
