@@ -280,115 +280,115 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     // Agregar estos métodos a tu clase Cubari
 
-private fun batchSearchRequest(query: String): Request {
-    // query puede ser:
-    // "user/repo/raw/main/lista.json" (GitHub)
-    // "https://ejemplo.com/lista.json" (URL completa)
-    val url = if (query.startsWith("http")) {
-        query
-    } else if (query.contains("github.com") || !query.contains("/")) {
-        // Si es formato GitHub sin protocolo
-        "https://raw.githubusercontent.com/$query"
-    } else {
-        // URL directa
-        query
-    }
-    
-    return GET(url, headers)
-}
-
-private fun batchSearchParse(response: Response, query: String): MangasPage {
-    val content = response.body.string()
-    val mangaList = mutableListOf<SManga>()
-    
-    try {
-        // Intentar parsear como JSON primero
-        if (content.trim().startsWith("[") || content.trim().startsWith("{")) {
-            parseJsonBatch(content, mangaList)
+    private fun batchSearchRequest(query: String): Request {
+        // query puede ser:
+        // "user/repo/raw/main/lista.json" (GitHub)
+        // "https://ejemplo.com/lista.json" (URL completa)
+        val url = if (query.startsWith("http")) {
+            query
+        } else if (query.contains("github.com") || !query.contains("/")) {
+            // Si es formato GitHub sin protocolo
+            "https://raw.githubusercontent.com/$query"
         } else {
-            // Parsear como texto plano (Markdown, líneas, etc.)
+            // URL directa
+            query
+        }
+    
+        return GET(url, headers)
+    }
+
+    private fun batchSearchParse(response: Response, query: String): MangasPage {
+        val content = response.body.string()
+        val mangaList = mutableListOf<SManga>()
+
+        try {
+            // Intentar parsear como JSON primero
+            if (content.trim().startsWith("[") || content.trim().startsWith("{")) {
+                parseJsonBatch(content, mangaList)
+            } else {
+                // Parsear como texto plano (Markdown, líneas, etc.)
+                parseTextBatch(content, mangaList)
+            }
+        } catch (e: Exception) {
+            println("Batch parse error: ${e.message}")
+            // Fallback: intentar extraer URLs de cualquier formato
             parseTextBatch(content, mangaList)
         }
-    } catch (e: Exception) {
-        println("Batch parse error: ${e.message}")
-        // Fallback: intentar extraer URLs de cualquier formato
-        parseTextBatch(content, mangaList)
-    }
-    
-    return MangasPage(mangaList, false)
-}
 
-private fun parseJsonBatch(jsonContent: String, mangaList: MutableList<SManga>) {
-    try {
-        val jsonArray = json.parseToJsonElement(jsonContent).jsonArray
-        
-        jsonArray.forEach { item ->
-            if (item is JsonObject) {
-                val manga = SManga.create().apply {
-                    title = item["title"]?.jsonPrimitive?.content ?: "Unknown"
-                    
-                    // El URL puede estar en varios formatos
-                    val urlValue = item["url"]?.jsonPrimitive?.content ?: ""
-                    url = when {
-                        urlValue.startsWith("/read/") -> urlValue
-                        urlValue.startsWith("gist/") -> "/read/$urlValue"
-                        urlValue.startsWith("cubari:") -> "/read/${urlValue.removePrefix("cubari:")}"
-                        else -> "/read/$urlValue"
-                    }
-                    
-                    thumbnail_url = item["cover"]?.jsonPrimitive?.content 
-                        ?: item["coverUrl"]?.jsonPrimitive?.content 
-                        ?: item["thumbnail_url"]?.jsonPrimitive?.content ?: ""
-                    
-                    artist = item["artist"]?.jsonPrimitive?.content ?: ""
-                    author = item["author"]?.jsonPrimitive?.content ?: ""
-                    description = item["description"]?.jsonPrimitive?.content ?: ""
-                }
-                mangaList.add(manga)
-            }
-        }
-    } catch (e: Exception) {
-        throw Exception("Invalid JSON format in batch file: ${e.message}")
+        return MangasPage(mangaList, false)
     }
-}
 
-private fun parseTextBatch(textContent: String, mangaList: MutableList<SManga>) {
-    // Buscar patrones: cubari:gist/[base64]
-    val cubariPattern = Regex("cubari:gist/([a-zA-Z0-9_=-]+)")
-    val matches = cubariPattern.findAll(textContent)
-    
-    matches.forEach { match ->
-        val slug = match.groupValues[1]
-        val manga = SManga.create().apply {
-            url = "/read/gist/$slug"
-            title = "Manga - $slug"
-            thumbnail_url = ""
-        }
-        mangaList.add(manga)
-    }
-    
-    // Si no encontró coincidencias con patrón, buscar líneas que parezcan URLs
-    if (mangaList.isEmpty()) {
-        textContent.lines().forEach { line ->
-            val cleanLine = line.trim()
-            if (cleanLine.isNotEmpty() && !cleanLine.startsWith("#")) {
-                // Si contiene gist o read/api
-                if (cleanLine.contains("gist") || cleanLine.contains("read")) {
+    private fun parseJsonBatch(jsonContent: String, mangaList: MutableList<SManga>) {
+        try {
+            val jsonArray = json.parseToJsonElement(jsonContent).jsonArray
+
+            jsonArray.forEach { item ->
+                if (item is JsonObject) {
                     val manga = SManga.create().apply {
+                        title = item["title"]?.jsonPrimitive?.content ?: "Unknown"
+
+                        // El URL puede estar en varios formatos
+                        val urlValue = item["url"]?.jsonPrimitive?.content ?: ""
                         url = when {
-                            cleanLine.startsWith("/read/") -> cleanLine
-                            cleanLine.startsWith("gist/") -> "/read/$cleanLine"
-                            else -> "/read/gist/$cleanLine"
+                            urlValue.startsWith("/read/") -> urlValue
+                            urlValue.startsWith("gist/") -> "/read/$urlValue"
+                            urlValue.startsWith("cubari:") -> "/read/${urlValue.removePrefix("cubari:")}"
+                            else -> "/read/$urlValue"
                         }
-                        title = "Manga - ${cleanLine.take(30)}"
-                        thumbnail_url = ""
+
+                        thumbnail_url = item["cover"]?.jsonPrimitive?.content 
+                            ?: item["coverUrl"]?.jsonPrimitive?.content 
+                            ?: item["thumbnail_url"]?.jsonPrimitive?.content ?: ""
+
+                        artist = item["artist"]?.jsonPrimitive?.content ?: ""
+                        author = item["author"]?.jsonPrimitive?.content ?: ""
+                        description = item["description"]?.jsonPrimitive?.content ?: ""
                     }
                     mangaList.add(manga)
                 }
             }
+        } catch (e: Exception) {
+            throw Exception("Invalid JSON format in batch file: ${e.message}")
         }
     }
-}
+
+    private fun parseTextBatch(textContent: String, mangaList: MutableList<SManga>) {
+        // Buscar patrones: cubari:gist/[base64]
+        val cubariPattern = Regex("cubari:gist/([a-zA-Z0-9_=-]+)")
+        val matches = cubariPattern.findAll(textContent)
+
+        matches.forEach { match ->
+            val slug = match.groupValues[1]
+            val manga = SManga.create().apply {
+                url = "/read/gist/$slug"
+                title = "Manga - $slug"
+                thumbnail_url = ""
+            }
+            mangaList.add(manga)
+        }
+
+        // Si no encontró coincidencias con patrón, buscar líneas que parezcan URLs
+        if (mangaList.isEmpty()) {
+            textContent.lines().forEach { line ->
+                val cleanLine = line.trim()
+                if (cleanLine.isNotEmpty() && !cleanLine.startsWith("#")) {
+                    // Si contiene gist o read/api
+                    if (cleanLine.contains("gist") || cleanLine.contains("read")) {
+                        val manga = SManga.create().apply {
+                            url = when {
+                                cleanLine.startsWith("/read/") -> cleanLine
+                                cleanLine.startsWith("gist/") -> "/read/$cleanLine"
+                                else -> "/read/gist/$cleanLine"
+                            }
+                            title = "Manga - ${cleanLine.take(30)}"
+                            thumbnail_url = ""
+                        }
+                        mangaList.add(manga)
+                    }
+                }
+            }
+        }
+    }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         return GET("$baseUrl/", headers)
