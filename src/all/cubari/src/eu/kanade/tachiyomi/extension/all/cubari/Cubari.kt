@@ -282,17 +282,20 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     private fun batchSearchRequest(query: String): Request {
         // query puede ser:
-        // "user/repo/raw/main/lista.json" (GitHub)
-        // "https://ejemplo.com/lista.json" (URL completa)
-        val url = if (query.startsWith("http")) {
-            query
-        } else if (query.contains("github.com") || !query.contains("/")) {
-            // Si es formato GitHub sin protocolo
-            "https://raw.githubusercontent.com/$query"
-        } else {
-            // URL directa
+        // 1. "user/repo/main/lista.json" (GitHub raw path)
+        // 2. "cmF3L0hwaXJiYWYvY2JyaS9tYWluL2xpc3RhLmpzb24" (base64 encoded)
+
+        val decodedQuery = try {
+            // Intentar decodificar como base64
+            val decoded = android.util.Base64.decode(query, android.util.Base64.DEFAULT)
+            String(decoded, Charsets.UTF_8)
+        } catch (e: Exception) {
+            // Si no es base64, usar como está
             query
         }
+    
+        // Construir URL de GitHub raw
+        val url = "https://raw.githubusercontent.com/$decodedQuery"
 
         return GET(url, headers)
     }
