@@ -286,49 +286,6 @@ open class Cubari(override val lang: String) : HttpSource() {
                 }
                 mangasPage
             }
-        }
-
-    private fun parseMultipleCubariUrls(query: String, mangaList: MutableList<SManga>) {
-        // Busca patrones: cubari:gist/[base64]
-        val cubariPattern = Regex("cubari:gist/([a-zA-Z0-9_=-]+)")
-        val matches = cubariPattern.findAll(query)
-
-        matches.forEach { match ->
-            val slug = match.groupValues[1]
-
-            try {
-                // Obtener el título real desde Cubari
-                val response = client.newCall(
-                    GET("$baseUrl/read/api/gist/series/$slug/", headers),
-                ).execute()
-
-                val jsonObj = json.parseToJsonElement(response.body.string()).jsonObject
-                val title = jsonObj["title"]?.jsonPrimitive?.content ?: "Unknown"
-                val coverUrl = jsonObj["coverUrl"]?.jsonPrimitive?.content
-                    ?: jsonObj["cover"]?.jsonPrimitive?.content ?: ""
-                val author = jsonObj["author"]?.jsonPrimitive?.content ?: ""
-                val artist = jsonObj["artist"]?.jsonPrimitive?.content ?: ""
-                val description = jsonObj["description"]?.jsonPrimitive?.content ?: ""
-
-                val manga = SManga.create().apply {
-                    this.title = title
-                    this.url = "/read/gist/$slug"
-                    this.thumbnail_url = coverUrl
-                    this.author = author
-                    this.artist = artist
-                    this.description = description
-                }
-                mangaList.add(manga)
-            } catch (e: Exception) {
-                // Si falla, al menos agrega el manga con nombre genérico
-                val manga = SManga.create().apply {
-                    url = "/read/gist/$slug"
-                    title = "Manga - $slug"
-                    thumbnail_url = ""
-                }
-                mangaList.add(manga)
-            }
-        }
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
