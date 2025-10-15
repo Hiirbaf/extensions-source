@@ -245,13 +245,17 @@ open class Cubari(override val lang: String) : HttpSource() {
 
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
         val trimmedQuery = query.trim()
-        if (trimmedQuery.isEmpty()) return Observable.just(MangasPage(emptyList(), false))
+        if (trimmedQuery.isEmpty())
+
+        return Observable.just(MangasPage(emptyList(), false))
 
         if (trimmedQuery.startsWith(PROXY_PREFIX)) {
             val slugs = trimmedQuery.removePrefix(PROXY_PREFIX)
-            .split(Regex("[,\\s]+"))
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }            return Observable.fromIterable(slugs)
+                .split(Regex("[,\\s]+"))
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+
+            return Observable.fromIterable(slugs)
                 .flatMap { slug ->
                     tagClient.newCall(proxySearchRequest(slug))
                         .asObservableSuccess()
