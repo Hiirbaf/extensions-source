@@ -248,9 +248,10 @@ open class Cubari(override val lang: String) : HttpSource() {
         if (trimmedQuery.isEmpty()) return Observable.just(MangasPage(emptyList(), false))
 
         if (trimmedQuery.startsWith(PROXY_PREFIX)) {
-            val slugs = trimmedQuery.removePrefix(PROXY_PREFIX).split(",").map { it.trim() }.filter { it.isNotEmpty() }
-
-            return Observable.fromIterable(slugs)
+            val slugs = trimmedQuery.removePrefix(PROXY_PREFIX)
+            .split(Regex("[,\\s]+"))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }            return Observable.fromIterable(slugs)
                 .flatMap { slug ->
                     tagClient.newCall(proxySearchRequest(slug))
                         .asObservableSuccess()
@@ -267,8 +268,8 @@ open class Cubari(override val lang: String) : HttpSource() {
         // Búsqueda normal
         return homeClient.newCall(searchMangaRequest(page, query, filters))
             .asObservableSuccess()
-            .map { response -> searchMangaParse(response, query) }
-            .map { mangasPage ->
+            .map { response ->
+                val mangasPage = searchMangaParse(response, query)
                 if (mangasPage.mangas.isEmpty()) throw Exception(SEARCH_FALLBACK_MSG)
                 mangasPage
             }
