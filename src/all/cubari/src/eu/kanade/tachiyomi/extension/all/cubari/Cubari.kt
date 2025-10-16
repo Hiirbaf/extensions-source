@@ -251,23 +251,22 @@ open class Cubari(override val lang: String) : HttpSource() {
 
         if (trimmedQuery.startsWith(PROXY_PREFIX)) {
             val slugs = trimmedQuery.removePrefix(PROXY_PREFIX)
-                .split(',', ' ')
+                .split(Regex("[,\\s]+"))
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
 
             return Observable.from(slugs)
                 .flatMap { slug ->
+                    if (!slug.contains("/")) return@flatMap Observable.just(emptyList<SManga>())
+
                     tagClient.newCall(proxySearchRequest(slug))
                         .asObservableSuccess()
                         .map { response -> proxySearchParse(response, slug).mangas }
                         .onErrorReturn { emptyList() }
                 }
-                .collect({ mutableListOf<SManga>() }) { list, mangas ->
-                    list.addAll(mangas)
-                }
-                .map { allMangas ->
-                    MangasPage(allMangas, false)
-                }
+                .flatMapIterable { it }
+                .toList()
+                .map { MangasPage(it, false) }
         }
 
         // Búsqueda normal
