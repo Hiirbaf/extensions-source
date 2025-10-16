@@ -255,19 +255,19 @@ open class Cubari(override val lang: String) : HttpSource() {
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
 
-            return Observable.fromIterable(slugs)
+            return Observable.from(slugs)
                 .flatMap { slug ->
                     tagClient.newCall(proxySearchRequest(slug))
                         .asObservableSuccess()
                         .map { response -> proxySearchParse(response, slug).mangas }
                         .onErrorReturn { emptyList() }
                 }
-                .toList()
-                .map { lists ->
-                    val allMangas = lists.flatten()
+                .collect({ mutableListOf<SManga>() }) { list, mangas ->
+                    list.addAll(mangas)
+                }
+                .map { allMangas ->
                     MangasPage(allMangas, false)
                 }
-                .toObservable()
         }
 
         // Búsqueda normal
