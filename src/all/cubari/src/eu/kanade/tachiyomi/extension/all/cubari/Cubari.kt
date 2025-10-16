@@ -264,9 +264,12 @@ open class Cubari(override val lang: String) : HttpSource() {
                         .map { response -> proxySearchParse(response, slug).mangas }
                         .onErrorReturn { emptyList() }
                 }
-                .flatMapIterable { it }
-                .toList()
-                .map { MangasPage(it, false) }
+                .collect({ mutableListOf<SManga>() }) { list, mangas ->
+                    list.addAll(mangas)
+                }
+                .map { allMangas ->
+                    MangasPage(allMangas, false)
+                }
         }
 
         // Búsqueda normal
