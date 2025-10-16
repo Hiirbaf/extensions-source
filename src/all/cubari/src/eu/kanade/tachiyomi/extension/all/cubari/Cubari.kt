@@ -247,7 +247,7 @@ open class Cubari(override val lang: String) : HttpSource() {
         val trimmedQuery = query.trim()
         if (trimmedQuery.isEmpty())
 
-        return Observable.just(MangasPage(emptyList(), false))
+            return Observable.just(MangasPage(emptyList(), false))
 
         if (trimmedQuery.startsWith(PROXY_PREFIX)) {
             val slugs = trimmedQuery.removePrefix(PROXY_PREFIX)
