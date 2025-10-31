@@ -279,8 +279,8 @@ class Cubari(override val lang: String) : HttpSource() {
                         title.takeIf { it.isNotBlank() }?.let { append(" - $it") }
                     }
                     url = when (groupValue) {
-                    is JsonArray -> "${manga.url}/$num/$groupNum"
-                    else -> groupValue.jsonPrimitive.content
+                        is JsonArray -> "${manga.url}/$num/$groupNum"
+                        else -> groupValue.jsonPrimitive.content
                     }
                 }
             }
