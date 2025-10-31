@@ -278,8 +278,10 @@ class Cubari(override val lang: String) : HttpSource() {
                         append("Ch.$num")
                         title.takeIf { it.isNotBlank() }?.let { append(" - $it") }
                     }
-                    url = if (groupValue is JsonArray) "${manga.url}/$num/$groupNum"
-                    else groupValue.jsonPrimitive.content
+                    url = when (groupValue) {
+                    is JsonArray -> "${manga.url}/$num/$groupNum"
+                    else -> groupValue.jsonPrimitive.content
+                    }
                 }
             }
         }.sortedByDescending { it.chapter_number }
