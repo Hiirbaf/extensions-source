@@ -154,11 +154,11 @@ class Cubari(override val lang: String) : HttpSource() {
     private fun seriesJsonPageListParse(response: Response, chapter: SChapter): List<Page> {
         val obj = response.parseAs<JsonObject>()
         val groups = obj["groups"]!!.jsonObject
-        val groupMap = groups.entries.associate { 
-            it.value.jsonPrimitive.content.ifEmpty { "default" } to it.key 
+        val groupMap = groups.entries.associate {
+            it.value.jsonPrimitive.content.ifEmpty { "default" } to it.key
         }
-        val chapters = obj["chapters"]!!.jsonObject.mapKeys { 
-            it.key.replace(Regex("^0+(?!$)"), "") 
+        val chapters = obj["chapters"]!!.jsonObject.mapKeys {
+            it.key.replace(Regex("^0+(?!$)"), "")
         }
 
         val chapterNum = chapter.chapter_number.toString()
