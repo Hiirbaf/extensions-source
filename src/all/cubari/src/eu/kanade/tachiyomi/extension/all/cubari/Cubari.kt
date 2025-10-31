@@ -236,8 +236,8 @@ class Cubari(override val lang: String) : HttpSource() {
             host.endsWith(".githubusercontent.com") -> {
                 val src = host.substringBefore(".")
                 val encoded = Base64.encodeToString(
-                    "$src${url.encodedPath}".toByteArray(), 
-                    Base64.NO_PADDING
+                    "$src${url.encodedPath}".toByteArray(),
+                    Base64.NO_PADDING,
                 )
                 "gist" to encoded
             }
