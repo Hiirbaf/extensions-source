@@ -120,9 +120,9 @@ class Cubari(override val lang: String) : HttpSource() {
     private fun isDirectChapter(chapter: SChapter) = "/chapter/" in chapter.url
 
     override fun pageListRequest(chapter: SChapter): Request {
-        return if (isDirectChapter(chapter))
-            GET("$baseUrl${chapter.url}", cubariHeaders) {
-            } else {
+        return if (isDirectChapter(chapter)) {
+            GET("$baseUrl${chapter.url}", cubariHeaders)
+        } else {
             val (source, slug) = chapter.url.split("/").let { it[2] to it[3] }
             GET("$baseUrl/read/api/$source/series/$slug/", cubariHeaders)
         }
@@ -133,10 +133,9 @@ class Cubari(override val lang: String) : HttpSource() {
             .asObservableSuccess()
             .map {
                 if (isDirectChapter(chapter))
-                    directPageListParse(it) {
+                    directPageListParse(it)
                 } else {
                     seriesJsonPageListParse(it, chapter)
-                    }
             }
 
     override fun pageListParse(response: Response): List<Page> =
