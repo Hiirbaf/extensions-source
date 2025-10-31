@@ -121,8 +121,8 @@ class Cubari(override val lang: String) : HttpSource() {
 
     override fun pageListRequest(chapter: SChapter): Request {
         return if (isDirectChapter(chapter))
-            GET("$baseUrl${chapter.url}", cubariHeaders)
-        else {
+            GET("$baseUrl${chapter.url}", cubariHeaders) {
+            } else {
             val (source, slug) = chapter.url.split("/").let { it[2] to it[3] }
             GET("$baseUrl/read/api/$source/series/$slug/", cubariHeaders)
         }
@@ -133,8 +133,8 @@ class Cubari(override val lang: String) : HttpSource() {
             .asObservableSuccess()
             .map {
                 if (isDirectChapter(chapter))
-                    directPageListParse(it)
-                else
+                    directPageListParse(it) {
+                    } else {
                     seriesJsonPageListParse(it, chapter)
             }
 
@@ -159,7 +159,7 @@ class Cubari(override val lang: String) : HttpSource() {
         val chapters = obj["chapters"]!!.jsonObject.mapKeys { 
             it.key.replace(Regex("^0+(?!$)"), "") 
         }
-        
+
         val chapterNum = chapter.chapter_number.toString()
         val scanlator = chapter.scanlator ?: "default"
 
@@ -311,7 +311,7 @@ class Cubari(override val lang: String) : HttpSource() {
                 "Tags: " in descriptionFull -> descriptionFull.substringAfter("Tags: ")
                 else -> ""
             }
-            
+
             url = mangaReference?.url ?: jsonObj["url"]!!.jsonPrimitive.content
             thumbnail_url = jsonObj["coverUrl"]?.jsonPrimitive?.content
                 ?: jsonObj["cover"]?.jsonPrimitive?.content
