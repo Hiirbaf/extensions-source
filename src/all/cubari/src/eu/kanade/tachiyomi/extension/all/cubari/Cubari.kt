@@ -131,11 +131,12 @@ class Cubari(override val lang: String) : HttpSource() {
     override fun fetchPageList(chapter: SChapter): Observable<List<Page>> =
         client.newCall(pageListRequest(chapter))
             .asObservableSuccess()
-            .map {
-                if (isDirectChapter(chapter))
-                    directPageListParse(it)
+            .map { response ->
+                if (isDirectChapter(chapter)) {
+                    directPageListParse(response)
                 } else {
-                    seriesJsonPageListParse(it, chapter)
+                    seriesJsonPageListParse(response, chapter)
+                }
             }
 
     override fun pageListParse(response: Response): List<Page> =
