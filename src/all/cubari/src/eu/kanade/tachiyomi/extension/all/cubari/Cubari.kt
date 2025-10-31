@@ -134,8 +134,9 @@ class Cubari(override val lang: String) : HttpSource() {
             .map {
                 if (isDirectChapter(chapter))
                     directPageListParse(it) {
-                    } else {
+                } else {
                     seriesJsonPageListParse(it, chapter)
+                    }
             }
 
     override fun pageListParse(response: Response): List<Page> =
