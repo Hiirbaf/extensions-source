@@ -45,7 +45,7 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
     override fun headersBuilder() = super.headersBuilder().set("Referer", "$baseUrl/")
 
     override val client: OkHttpClient = network.cloudflareClient.newBuilder().setRandomUserAgent(
-        userAgentType = UserAgentType.MOBILE,
+        userAgentType = UserAgentType.DESKTOP,
         filterInclude = listOf("chrome"),
     ).addNetworkInterceptor(::captchaInterceptor).build()
 
@@ -175,22 +175,17 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
 
     override fun mangaDetailsParse(document: Document): SManga {
+        val infoElement = document.select("div.barContent").first()!!
+
         val manga = SManga.create()
-
-        // Título en el <h3>
-        manga.title = document.selectFirst("div.heading > h3")!!.text()
-
-        // Otros campos
-        manga.artist = document.select("p:has(span:contains(Artist:)) > a").first()?.text()
-        manga.author = document.select("p:has(span:contains(Writer:)) > a").first()?.text()
-        manga.genre = document.select("p:has(span:contains(Genres:)) > *:gt(0)").text()
-        manga.description = document.select("p:has(span:contains(Summary:)) ~ p").text()
-        manga.status = document.select("p:has(span:contains(Status:))").first()?.text().orEmpty()
+        manga.title = infoElement.selectFirst("a.bigChar")!!.text()
+        manga.artist = infoElement.select("p:has(span:contains(Artist:)) > a").first()?.text()
+        manga.author = infoElement.select("p:has(span:contains(Writer:)) > a").first()?.text()
+        manga.genre = infoElement.select("p:has(span:contains(Genres:)) > *:gt(0)").text()
+        manga.description = infoElement.select("p:has(span:contains(Summary:)) ~ p").text()
+        manga.status = infoElement.select("p:has(span:contains(Status:))").first()?.text().orEmpty()
             .let { parseStatus(it) }
-
-        // Thumbnail desde <div class="col cover">
-        manga.thumbnail_url = document.select("div.col.cover img").first()?.absUrl("src")
-
+        manga.thumbnail_url = document.select(".rightBox:eq(0) img").first()?.absUrl("src")
         return manga
     }
 
