@@ -184,10 +184,10 @@ class Readcomiconline : ConfigurableSource, ParsedHttpSource() {
         val manga = SManga.create()
         // Limpiar el título antes de asignarlo
         manga.title = infoElement.selectFirst("a.bigChar")!!.text()
-            .trim()                           // Elimina espacios al inicio y final
-            .replace(Regex("\\s+"), " ")      // Reemplaza múltiples espacios/tabs/newlines por un solo espacio
-            .replace(Regex("[\\x00-\\x1F\\x7F]"), "") // Elimina caracteres de control
-            .replace(Regex("\\p{C}"), "")     // Elimina caracteres invisibles Unicode
+            .trim()
+            .replace(Regex("\\s+"), " ")
+            .replace(Regex("[\\x00-\\x1F\\x7F]"), "")
+            .replace(Regex("\\p{C}"), "")
 
         manga.artist = infoElement.select("p:has(span:contains(Artist:)) > a").first()?.text()
         manga.author = infoElement.select("p:has(span:contains(Writer:)) > a").first()?.text()
