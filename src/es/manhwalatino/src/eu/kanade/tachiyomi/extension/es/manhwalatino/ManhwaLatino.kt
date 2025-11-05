@@ -36,8 +36,8 @@ class ManhwaLatino : Madara(
             // Filtra solo cookies relevantes
             val filtered = cookies.filter {
                 it.name.startsWith("cf_") ||
-                it.name.equals("PHPSESSID", true) ||
-                it.name.equals("__cf_bm", true)
+                    it.name.equals("PHPSESSID", true) ||
+                    it.name.equals("__cf_bm", true)
             }
             if (filtered.isNotEmpty()) {
                 cookieStore[url.host] = filtered
@@ -121,7 +121,9 @@ class ManhwaLatino : Madara(
                     .setQueryParameter("t", page.toString())
                     .build()
                 document = client.newCall(GET(nextPageUrl, headers)).execute().asJsoup()
-            } else break
+            } else {
+                break
+            }
         } while (true)
 
         return chapterList
