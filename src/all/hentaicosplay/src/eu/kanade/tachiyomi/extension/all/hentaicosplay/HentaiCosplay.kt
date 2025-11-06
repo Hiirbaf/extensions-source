@@ -100,7 +100,7 @@ class HentaiCosplay : HttpSource() {
 
                     title = element.select(".image-list-item-title").text()
                         .ifEmpty { element.selectFirst("a")?.attr("title") ?: "Unknown" }
-                    
+
                     element.selectFirst(".image-list-item-regist-date")
                         ?.text()
                         ?.trim()
@@ -165,7 +165,7 @@ class HentaiCosplay : HttpSource() {
                     .run {
                         tagCache = buildList {
                             add(Pair("", ""))
-                            // Buscar tags en el sidebar o footer
+                            //Buscar tags en el sidebar o footer
                             select("a[href*=/search/tag/], a[href*=/tag/], #sidr-right a[href*=/search/keyword/]")
                                 .distinctBy { it.absUrl("href") }
                                 .map {
@@ -215,7 +215,7 @@ class HentaiCosplay : HttpSource() {
         val document = response.asJsoup()
 
         return SManga.create().apply {
-            // Buscar tags en múltiples ubicaciones posibles
+            //Buscar tags en múltiples ubicaciones posibles
             genre = document.select("a[href*=/tag/], a[href*=/search/tag/], a[href*=/search/keyword/]")
                 .eachText()
                 .distinctBy { it.lowercase() }
@@ -229,7 +229,7 @@ class HentaiCosplay : HttpSource() {
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
         SChapter.create().apply {
             name = "Gallery"
-            // Mantener la misma URL ya que /image/ contiene las imágenes
+            //Mantener la misma URL ya que /image/ contiene las imágenes
             url = manga.url
             date_upload = runCatching {
                 dateCache[manga.url]?.let { dateFormat.parse(it)?.time }
@@ -242,15 +242,15 @@ class HentaiCosplay : HttpSource() {
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
 
-        // Buscar imágenes en múltiples selectores posibles
+        //Buscar imágenes en múltiples selectores posibles
         val images = document.select(
             "img[src*=upload]:not([src*=/p=]), " + // Imágenes sin resize
-            "img[data-src*=upload], " + // Lazy loading
-            "amp-img[src*=upload], " + // AMP images
-            "#display_image_detail img, " + // Detalle desktop
-            "#detail_list img" // Lista de detalles
+            "img[data-src*=upload], " + //Lazy loading
+            "amp-img[src*=upload], " + //AMP images
+            "#display_image_detail img, " + //Detalle desktop
+            "#detail_list img", //Lista de detalles
         ).filter { img ->
-            // Filtrar thumbnails y imágenes relacionadas
+            //Filtrar thumbnails y imágenes relacionadas
             val src = img.attr("src").ifEmpty { img.attr("data-src") }
             src.contains("/upload/") && 
             !img.hasClass("related-thumbnail") &&
@@ -261,7 +261,7 @@ class HentaiCosplay : HttpSource() {
             val imageUrl = element.attr("src")
                 .ifEmpty { element.attr("data-src") }
                 .replace("http://", "https://")
-                .replace(Regex("/p=\\d+x\\d+/"), "/") // Remover resize para obtener imagen completa
+                .replace(Regex("/p=\\d+x\\d+/"), "/") //Remover resize para obtener imagen completa
             
             Page(index = index, imageUrl = imageUrl)
         }
