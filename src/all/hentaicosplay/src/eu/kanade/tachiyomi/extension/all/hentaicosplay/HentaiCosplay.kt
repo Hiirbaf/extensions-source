@@ -48,28 +48,40 @@ class HentaiCosplay : HttpSource() {
 
     override fun popularMangaParse(response: Response): MangasPage {
         val document = response.asJsoup()
-
-        return if (document.selectFirst("div.image-list-item") == null) {
-            parseMobileListing(document)
-        } else {
-            parseDesktopListing(document)
+        
+        // Detectar si es versión móvil o desktop
+        return when {
+            document.selectFirst("ul#entry_list") != null -> parseMobileListing(document)
+            document.selectFirst("div.image-list-item") != null -> parseDesktopListing(document)
+            else -> parseMobileListing(document) // Fallback a móvil
         }
     }
 
     private fun parseMobileListing(document: Document): MangasPage {
-        val entries = document.select("#entry_list > li > a[href*=/image/]")
+        val entries = document.select("ul#entry_list > li > a[href*=/image/]")
             .map { element ->
                 SManga.create().apply {
                     setUrlWithoutDomain(element.absUrl("href"))
                     thumbnail_url = element.selectFirst("img")
-                        ?.absUrl("src")
+                        ?.run {
+                            // Buscar src o data-src
+                            attr("src").ifEmpty { attr("data-src") }
+                        }
                         ?.replace("http://", "https://")
-                    title = element.selectFirst("span:not(.posted)")!!.text()
+                        ?.replace(Regex("/p=\\d+x\\d+/"), "/") // Remover parámetro de tamaño
+                    
+                    title = element.selectFirst("span:not(.posted)")?.text()
+                        ?: element.attr("title")
+                        ?: "Unknown"
+                    
                     element.selectFirst("span.posted")
-                        ?.text()?.also { dateCache[url] = it }
+                        ?.text()
+                        ?.trim()
+                        ?.also { dateCache[url] = it }
                 }
             }
-        val hasNextPage = document.selectFirst("a.paginator_page[rel=next]") != null
+        
+        val hasNextPage = document.selectFirst("a.paginator_page[rel=next], a.view_more") != null
 
         return MangasPage(entries, hasNextPage)
     }
@@ -80,14 +92,23 @@ class HentaiCosplay : HttpSource() {
                 SManga.create().apply {
                     setUrlWithoutDomain(element.selectFirst("a")!!.absUrl("href"))
                     thumbnail_url = element.selectFirst("img")
-                        ?.absUrl("src")
+                        ?.run {
+                            attr("src").ifEmpty { attr("data-src") }
+                        }
                         ?.replace("http://", "https://")
+                        ?.replace(Regex("/p=\\d+x\\d+/"), "/")
+                    
                     title = element.select(".image-list-item-title").text()
+                        .ifEmpty { element.selectFirst("a")?.attr("title") ?: "Unknown" }
+                    
                     element.selectFirst(".image-list-item-regist-date")
-                        ?.text()?.also { dateCache[url] = it }
+                        ?.text()
+                        ?.trim()
+                        ?.also { dateCache[url] = it }
                 }
             }
-        val hasNextPage = document.selectFirst("div.wp-pagenavi > a[rel=next]") != null
+        
+        val hasNextPage = document.selectFirst("div.wp-pagenavi > a[rel=next], a.view_more") != null
 
         return MangasPage(entries, hasNextPage)
     }
@@ -144,14 +165,19 @@ class HentaiCosplay : HttpSource() {
                     .run {
                         tagCache = buildList {
                             add(Pair("", ""))
-                            select("#tags a").map {
-                                Pair(
-                                    it.text()
-                                        .replace(tagNumRegex, "")
-                                        .trim(),
-                                    it.attr("href"),
-                                ).let(::add)
-                            }
+                            // Buscar tags en el sidebar o footer
+                            select("a[href*=/search/tag/], a[href*=/tag/], #sidr-right a[href*=/search/keyword/]")
+                                .distinctBy { it.absUrl("href") }
+                                .map {
+                                    Pair(
+                                        it.text()
+                                            .replace(tagNumRegex, "")
+                                            .trim(),
+                                        it.attr("href")
+                                    )
+                                }
+                                .filter { it.first.isNotEmpty() }
+                                .forEach(::add)
                         }
                     }
             }
@@ -180,7 +206,7 @@ class HentaiCosplay : HttpSource() {
             FilterList(
                 Filter.Header("Ignored with text search"),
                 Filter.Separator(),
-                TagFilter("Ranked Tags", tagCache),
+                TagFilter("Tags", tagCache),
             )
         }
     }
@@ -189,7 +215,12 @@ class HentaiCosplay : HttpSource() {
         val document = response.asJsoup()
 
         return SManga.create().apply {
-            genre = document.select("#detail_tag a[href*=/tag/]").eachText().joinToString()
+            // Buscar tags en múltiples ubicaciones posibles
+            genre = document.select("a[href*=/tag/], a[href*=/search/tag/], a[href*=/search/keyword/]")
+                .eachText()
+                .distinctBy { it.lowercase() }
+                .joinToString()
+            
             update_strategy = UpdateStrategy.ONLY_FETCH_ONCE
             status = SManga.COMPLETED
         }
@@ -198,10 +229,11 @@ class HentaiCosplay : HttpSource() {
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
         SChapter.create().apply {
             name = "Gallery"
-            url = manga.url.replace("/image/", "/story/")
+            // Mantener la misma URL ya que /image/ contiene las imágenes
+            url = manga.url
             date_upload = runCatching {
-                dateFormat.parse(dateCache[manga.url]!!)!!.time
-            }.getOrDefault(0L)
+                dateCache[manga.url]?.let { dateFormat.parse(it)?.time }
+            }.getOrNull() ?: 0L
         }.let(::listOf)
     }
 
@@ -209,28 +241,36 @@ class HentaiCosplay : HttpSource() {
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
-        return document.select("amp-img[src*=upload]:not(.related-thumbnail)")
-            .mapIndexed { index, element ->
-                Page(
-                    index = index,
-                    imageUrl = element.attr("src"),
-                )
-            }
+        
+        // Buscar imágenes en múltiples selectores posibles
+        val images = document.select(
+            "img[src*=upload]:not([src*=/p=]), " + // Imágenes sin resize
+            "img[data-src*=upload], " + // Lazy loading
+            "amp-img[src*=upload], " + // AMP images
+            "#display_image_detail img, " + // Detalle desktop
+            "#detail_list img" // Lista de detalles
+        ).filter { img ->
+            // Filtrar thumbnails y imágenes relacionadas
+            val src = img.attr("src").ifEmpty { img.attr("data-src") }
+            src.contains("/upload/") && 
+            !img.hasClass("related-thumbnail") &&
+            !src.contains("/p=160x200/")
+        }
+        
+        return images.mapIndexed { index, element ->
+            val imageUrl = element.attr("src")
+                .ifEmpty { element.attr("data-src") }
+                .replace("http://", "https://")
+                .replace(Regex("/p=\\d+x\\d+/"), "/") // Remover resize para obtener imagen completa
+            
+            Page(index = index, imageUrl = imageUrl)
+        }
     }
 
-    override fun imageUrlParse(response: Response) = imageUrlParse(response.asJsoup())
-
-    private fun imageUrlParse(document: Document): String {
-        return document.selectFirst("#display_image_detail img, #detail_list img")!!
-            .absUrl("src")
-            .replace("http://", "https://")
-            .replace(hdRegex, "/")
-    }
+    override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
     companion object {
         private val tagNumRegex = Regex("""(\(\d+\))""")
-        private val pagesRegex = Regex("""\d+/(\d+)${'$'}""")
-        private val hdRegex = Regex("""(/p=\d+x?\d+?/)""")
         private val dateFormat by lazy {
             SimpleDateFormat("yyyy/MM/dd", Locale.ENGLISH)
         }
