@@ -220,7 +220,7 @@ class HentaiCosplay : HttpSource() {
                 .eachText()
                 .distinctBy { it.lowercase() }
                 .joinToString()
-            
+
             update_strategy = UpdateStrategy.ONLY_FETCH_ONCE
             status = SManga.COMPLETED
         }
@@ -244,12 +244,14 @@ class HentaiCosplay : HttpSource() {
 
         // Buscar imágenes en múltiples selectores posibles
         val images = document.select(
-            "img[src*=upload]:not([src*=/p=]), " + // Imágenes sin resize
-            "img[data-src*=upload], " + // Lazy loading
-            "amp-img[src*=upload], " + // AMP images
-            "#display_image_detail img, " + // Detalle desktop
-            "#detail_list img", // Lista de detalles
+                "img[src*=upload]:not([src*=/p=]), " +
+                "img[data-src*=upload], " +
+                "amp-img[src*=upload], " +
+                "#display_image_detail img, " +
+                "#detail_list img"
         ).filter { img ->
+            // filtro adicional aquí
+        }
             // Filtrar thumbnails y imágenes relacionadas
             val src = img.attr("src").ifEmpty { img.attr("data-src") }
             src.contains("/upload/") && 
