@@ -48,7 +48,7 @@ class HentaiCosplay : HttpSource() {
 
     override fun popularMangaParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        
+
         // Detectar si es versión móvil o desktop
         return when {
             document.selectFirst("ul#entry_list") != null -> parseMobileListing(document)
@@ -69,18 +69,18 @@ class HentaiCosplay : HttpSource() {
                         }
                         ?.replace("http://", "https://")
                         ?.replace(Regex("/p=\\d+x\\d+/"), "/") // Remover parámetro de tamaño
-                    
+
                     title = element.selectFirst("span:not(.posted)")?.text()
                         ?: element.attr("title")
                         ?: "Unknown"
-                    
+
                     element.selectFirst("span.posted")
                         ?.text()
                         ?.trim()
                         ?.also { dateCache[url] = it }
                 }
             }
-        
+
         val hasNextPage = document.selectFirst("a.paginator_page[rel=next], a.view_more") != null
 
         return MangasPage(entries, hasNextPage)
@@ -97,7 +97,7 @@ class HentaiCosplay : HttpSource() {
                         }
                         ?.replace("http://", "https://")
                         ?.replace(Regex("/p=\\d+x\\d+/"), "/")
-                    
+
                     title = element.select(".image-list-item-title").text()
                         .ifEmpty { element.selectFirst("a")?.attr("title") ?: "Unknown" }
                     
@@ -107,7 +107,7 @@ class HentaiCosplay : HttpSource() {
                         ?.also { dateCache[url] = it }
                 }
             }
-        
+
         val hasNextPage = document.selectFirst("div.wp-pagenavi > a[rel=next], a.view_more") != null
 
         return MangasPage(entries, hasNextPage)
@@ -241,7 +241,7 @@ class HentaiCosplay : HttpSource() {
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
-        
+
         // Buscar imágenes en múltiples selectores posibles
         val images = document.select(
             "img[src*=upload]:not([src*=/p=]), " + // Imágenes sin resize
@@ -256,7 +256,7 @@ class HentaiCosplay : HttpSource() {
             !img.hasClass("related-thumbnail") &&
             !src.contains("/p=160x200/")
         }
-        
+
         return images.mapIndexed { index, element ->
             val imageUrl = element.attr("src")
                 .ifEmpty { element.attr("data-src") }
