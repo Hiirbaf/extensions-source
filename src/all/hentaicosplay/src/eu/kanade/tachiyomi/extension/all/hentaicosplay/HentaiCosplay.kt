@@ -250,8 +250,6 @@ class HentaiCosplay : HttpSource() {
                 "#display_image_detail img, " +
                 "#detail_list img"
         ).filter { img ->
-            // filtro adicional aquí
-        }
             // Filtrar thumbnails y imágenes relacionadas
             val src = img.attr("src").ifEmpty { img.attr("data-src") }
             src.contains("/upload/") && 
