@@ -244,15 +244,15 @@ class HentaiCosplay : HttpSource() {
 
         // Buscar imágenes en múltiples selectores posibles
         val images = document.select(
-                "img[src*=upload]:not([src*=/p=]), " +
+            "img[src*=upload]:not([src*=/p=]), " +
                 "img[data-src*=upload], " +
                 "amp-img[src*=upload], " +
                 "#display_image_detail img, " +
-                "#detail_list img"
+                "#detail_list img",
         ).filter { img ->
             // Filtrar thumbnails y imágenes relacionadas
             val src = img.attr("src").ifEmpty { img.attr("data-src") }
-            src.contains("/upload/") && 
+            src.contains("/upload/") &&
             !img.hasClass("related-thumbnail") &&
             !src.contains("/p=160x200/")
         }
@@ -262,7 +262,7 @@ class HentaiCosplay : HttpSource() {
                 .ifEmpty { element.attr("data-src") }
                 .replace("http://", "https://")
                 .replace(Regex("/p=\\d+x\\d+/"), "/") // Remover resize para obtener imagen completa
-            
+
             Page(index = index, imageUrl = imageUrl)
         }
     }
