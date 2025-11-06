@@ -253,8 +253,8 @@ class HentaiCosplay : HttpSource() {
             // Filtrar thumbnails y imágenes relacionadas
             val src = img.attr("src").ifEmpty { img.attr("data-src") }
             src.contains("/upload/") &&
-            !img.hasClass("related-thumbnail") &&
-            !src.contains("/p=160x200/")
+                !img.hasClass("related-thumbnail") &&
+                !src.contains("/p=160x200/")
         }
 
         return images.mapIndexed { index, element ->
