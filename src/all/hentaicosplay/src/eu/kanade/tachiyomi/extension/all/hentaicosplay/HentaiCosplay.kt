@@ -198,7 +198,7 @@ class HentaiCosplay : HttpSource() {
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
         SChapter.create().apply {
             name = "Gallery"
-            url = manga.url
+            url = manga.url.replace("/image/", "/story/")
             date_upload = runCatching {
                 dateFormat.parse(dateCache[manga.url]!!)!!.time
             }.getOrDefault(0L)
