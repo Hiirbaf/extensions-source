@@ -200,8 +200,8 @@ class HentaiCosplay : HttpSource() {
             name = "Gallery"
             url = manga.url
             date_upload = runCatching {
-                dateCache[manga.url]?.let { dateFormat.parse(it)?.time }
-            }.getOrNull() ?: 0L
+                dateFormat.parse(dateCache[manga.url]!!)!!.time
+            }.getOrDefault(0L)
         }.let(::listOf)
     }
 
@@ -209,32 +209,23 @@ class HentaiCosplay : HttpSource() {
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
-
-        // Buscar imágenes en múltiples selectores posibles
-        val images = document.select(
-            "img[src*=upload]:not([src*=/p=]), " +
-                "img[data-src*=upload], " +
-                "amp-img[src*=upload], " +
-                "#display_image_detail img, " +
-                "#detail_list img",
-        ).filter { img ->
-            // Filtrar thumbnails y imágenes relacionadas
-            val src = img.attr("src").ifEmpty { img.attr("data-src") }
-            src.contains("/upload/") &&
-                !img.hasClass("related-thumbnail")
-        }
-
-        return images.mapIndexed { index, element ->
-            val imageUrl = element.attr("src")
-                .ifEmpty { element.attr("data-src") }
-                .replace("http://", "https://")
-                .replace(Regex("/p=\\d+x\\d+/"), "/") // Remover resize para obtener imagen completa
-
-            Page(index = index, imageUrl = imageUrl)
-        }
+        return document.select("amp-img[src*=upload]:not(.related-thumbnail)")
+            .mapIndexed { index, element ->
+                Page(
+                    index = index,
+                    imageUrl = element.attr("src"),
+                )
+            }
     }
 
-    override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response) = imageUrlParse(response.asJsoup())
+
+    private fun imageUrlParse(document: Document): String {
+        return document.selectFirst("#display_image_detail img, #detail_list img")!!
+            .absUrl("src")
+            .replace("http://", "https://")
+            .replace(hdRegex, "/")
+    }
 
     companion object {
         private val tagNumRegex = Regex("""(\(\d+\))""")
