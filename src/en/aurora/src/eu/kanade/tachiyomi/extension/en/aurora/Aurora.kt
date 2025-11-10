@@ -289,7 +289,7 @@ class Aurora : HttpSource() {
             val pageProps = props.optJSONObject("pageProps") ?: return null
 
             // A menudo la página de título incluye "manga" o "title" dentro de pageProps
-            val keys = listOf("manga","title","item","data")
+            val keys = listOf("manga", "title", "item", "data")
             for (k in keys) {
                 val o = pageProps.optJSONObject(k) ?: continue
                 if (o.has("slug") || o.has("title")) return o
