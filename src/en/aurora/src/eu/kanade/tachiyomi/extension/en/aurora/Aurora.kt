@@ -312,7 +312,7 @@ class Aurora : HttpSource() {
             val props = json.optJSONObject("props") ?: return null
             val pageProps = props.optJSONObject("pageProps") ?: return null
             // Buscar arrays llamados "chapters" o "chapterList"
-            val candidates = listOf("chapters","chapterList","volumes","episodes")
+            val candidates = listOf("chapters", "chapterList", "volumes", "episodes")
             for (c in candidates) {
                 val arr = pageProps.optJSONArray(c) ?: continue
                 val out = mutableListOf<JSONObject>()
