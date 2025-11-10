@@ -9,9 +9,9 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import okhttp3.Request
 import okhttp3.Response
+import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import org.json.JSONObject
 import java.net.URLEncoder
 
 class Aurora : HttpSource() {
@@ -259,7 +259,7 @@ class Aurora : HttpSource() {
             val pageProps = props.optJSONObject("pageProps") ?: return null
 
             // Búsquedas típicas
-            val candidates = listOf("items","mangas","data","results","titles")
+            val candidates = listOf("items", "mangas", "data", "results", "titles")
             for (c in candidates) {
                 if (pageProps.has(c)) {
                     val arr = pageProps.optJSONArray(c) ?: continue
@@ -330,7 +330,7 @@ class Aurora : HttpSource() {
             val pageProps = props.optJSONObject("pageProps") ?: return null
 
             // posibles claves: images, pages, imageList
-            val candidates = listOf("images","pages","imageList","imagesArr")
+            val candidates = listOf("images", "pages", "imageList", "imagesArr")
             for (c in candidates) {
                 val arr = pageProps.optJSONArray(c) ?: continue
                 val out = mutableListOf<String>()
