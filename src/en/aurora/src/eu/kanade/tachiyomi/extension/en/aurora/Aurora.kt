@@ -369,6 +369,6 @@ class Aurora : HttpSource() {
 
     private val headers = mapOf(
         "User-Agent" to "Mozilla/5.0 (Android) Mihon/1.0",
-        "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     )
 }
