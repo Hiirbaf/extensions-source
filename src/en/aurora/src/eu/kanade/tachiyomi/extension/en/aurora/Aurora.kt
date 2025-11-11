@@ -226,126 +226,127 @@ class Aurora : HttpSource() {
         throw UnsupportedOperationException("Not used")
     }
 
-// --- Helpers ---
-private fun extractNextDataJson(doc: Document): JSONObject? {
-    try {
-        val script = doc.selectFirst("script#__NEXT_DATA__, script:containsData(__NEXT_DATA__), script:containsData(sharedData)")
-        if (script != null) {
-            val data = script.data()
-            val start = data.indexOf('{')
-            val end = data.lastIndexOf('}')
-            if (start >= 0 && end > start) {
-                val jsonText = data.substring(start, end + 1)
-                return JSONObject(jsonText)
+    // --- Helpers ---
+    private fun extractNextDataJson(doc: Document): JSONObject? {
+        try {
+            val script = doc.selectFirst("script#__NEXT_DATA__, script:containsData(__NEXT_DATA__), script:containsData(sharedData)")
+            if (script != null) {
+                val data = script.data()
+                val start = data.indexOf('{')
+                val end = data.lastIndexOf('}')
+                if (start >= 0 && end > start) {
+                    val jsonText = data.substring(start, end + 1)
+                    return JSONObject(jsonText)
+                }
             }
-        }
-        doc.select("script").forEach { s ->
-            val t = s.data()
-            if (t.contains("window.__NEXT_DATA__") || t.contains("__NEXT_DATA__")) {
-                val idx = t.indexOf('{')
-                val idy = t.lastIndexOf('}')
-                if (idx >= 0 && idy > idx) return JSONObject(t.substring(idx, idy + 1))
+            doc.select("script").forEach { s ->
+                val t = s.data()
+                if (t.contains("window.__NEXT_DATA__") || t.contains("__NEXT_DATA__")) {
+                    val idx = t.indexOf('{')
+                    val idy = t.lastIndexOf('}')
+                    if (idx >= 0 && idy > idx) return JSONObject(t.substring(idx, idy + 1))
+                }
             }
-        }
-    } catch (_: Exception) { }
-    return null
-}
+        } catch (_: Exception) { }
+        return null
+    }
 
-private fun extractListFromNextJson(json: JSONObject): List<JSONObject>? {
-    try {
-        val props = json.optJSONObject("props") ?: return null
-        val pageProps = props.optJSONObject("pageProps") ?: return null
-        val candidates = listOf("items", "mangas", "data", "results", "titles")
-        for (c in candidates) {
-            if (pageProps.has(c)) {
+    private fun extractListFromNextJson(json: JSONObject): List<JSONObject>? {
+        try {
+            val props = json.optJSONObject("props") ?: return null
+            val pageProps = props.optJSONObject("pageProps") ?: return null
+            val candidates = listOf("items", "mangas", "data", "results", "titles")
+            for (c in candidates) {
+                if (pageProps.has(c)) {
+                    val arr = pageProps.optJSONArray(c) ?: continue
+                    val out = mutableListOf<JSONObject>()
+                    for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
+                    if (out.isNotEmpty()) return out
+                }
+            }
+            val shared = pageProps.optJSONObject("sharedData") ?: pageProps.optJSONObject("initialData")
+            if (shared != null) {
+                val arr = shared.optJSONArray("items")
+                if (arr != null) {
+                    val out = mutableListOf<JSONObject>()
+                    for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
+                    if (out.isNotEmpty()) return out
+                }
+            }
+        } catch (_: Exception) {}
+        return null
+    }
+
+    private fun extractMangaObjectFromNextJson(json: JSONObject, location: String): JSONObject? {
+        try {
+            val props = json.optJSONObject("props") ?: return null
+            val pageProps = props.optJSONObject("pageProps") ?: return null
+            val keys = listOf("manga", "title", "item", "data")
+            for (k in keys) {
+                val o = pageProps.optJSONObject(k) ?: continue
+                if (o.has("slug") || o.has("title")) return o
+            }
+            val shared = pageProps.optJSONObject("sharedData")
+            shared?.let {
+                shared.keys().forEach { key ->
+                    val o = shared.optJSONObject(key)
+                    if (o != null && o.has("title")) return o
+                }
+            }
+        } catch (_: Exception) {}
+        return null
+    }
+
+    private fun extractChaptersFromNextJson(json: JSONObject): List<JSONObject>? {
+        try {
+            val props = json.optJSONObject("props") ?: return null
+            val pageProps = props.optJSONObject("pageProps") ?: return null
+            val candidates = listOf("chapters", "chapterList", "volumes", "episodes")
+            for (c in candidates) {
                 val arr = pageProps.optJSONArray(c) ?: continue
                 val out = mutableListOf<JSONObject>()
                 for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
                 if (out.isNotEmpty()) return out
             }
-        }
-        val shared = pageProps.optJSONObject("sharedData") ?: pageProps.optJSONObject("initialData")
-        if (shared != null) {
-            val arr = shared.optJSONArray("items")
-            if (arr != null) {
-                val out = mutableListOf<JSONObject>()
-                for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
+        } catch (_: Exception) {}
+        return null
+    }
+
+    private fun extractImageListFromNextJson(json: JSONObject?): List<String>? {
+        if (json == null) return null
+        try {
+            val props = json.optJSONObject("props") ?: return null
+            val pageProps = props.optJSONObject("pageProps") ?: return null
+            val candidates = listOf("images", "pages", "imageList", "imagesArr")
+            for (c in candidates) {
+                val arr = pageProps.optJSONArray(c) ?: continue
+                val out = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    val v = arr.optString(i)
+                    if (v.isNotBlank()) out.add(v)
+                }
                 if (out.isNotEmpty()) return out
             }
-        }
-    } catch (_: Exception) {}
-    return null
-}
-
-private fun extractMangaObjectFromNextJson(json: JSONObject, location: String): JSONObject? {
-    try {
-        val props = json.optJSONObject("props") ?: return null
-        val pageProps = props.optJSONObject("pageProps") ?: return null
-        val keys = listOf("manga", "title", "item", "data")
-        for (k in keys) {
-            val o = pageProps.optJSONObject(k) ?: continue
-            if (o.has("slug") || o.has("title")) return o
-        }
-        val shared = pageProps.optJSONObject("sharedData")
-        shared?.let {
-            shared.keys().forEach { key ->
-                val o = shared.optJSONObject(key)
-                if (o != null && o.has("title")) return o
-            }
-        }
-    } catch (_: Exception) {}
-    return null
-}
-
-private fun extractChaptersFromNextJson(json: JSONObject): List<JSONObject>? {
-    try {
-        val props = json.optJSONObject("props") ?: return null
-        val pageProps = props.optJSONObject("pageProps") ?: return null
-        val candidates = listOf("chapters", "chapterList", "volumes", "episodes")
-        for (c in candidates) {
-            val arr = pageProps.optJSONArray(c) ?: continue
-            val out = mutableListOf<JSONObject>()
-            for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
-            if (out.isNotEmpty()) return out
-        }
-    } catch (_: Exception) {}
-    return null
-}
-
-private fun extractImageListFromNextJson(json: JSONObject?): List<String>? {
-    if (json == null) return null
-    try {
-        val props = json.optJSONObject("props") ?: return null
-        val pageProps = props.optJSONObject("pageProps") ?: return null
-        val candidates = listOf("images", "pages", "imageList", "imagesArr")
-        for (c in candidates) {
-            val arr = pageProps.optJSONArray(c) ?: continue
-            val out = mutableListOf<String>()
-            for (i in 0 until arr.length()) {
-                val v = arr.optString(i)
-                if (v.isNotBlank()) out.add(v)
-            }
-            if (out.isNotEmpty()) return out
-        }
-        val shared = pageProps.optJSONObject("sharedData")
-        shared?.let {
-            shared.keys().forEach { k ->
-                val o = shared.optJSONObject(k)
-                o?.optJSONArray("images")?.let { arr ->
-                    val out = mutableListOf<String>()
-                    for (i in 0 until arr.length()) out.add(arr.optString(i))
-                    if (out.isNotEmpty()) return out
+            val shared = pageProps.optJSONObject("sharedData")
+            shared?.let {
+                shared.keys().forEach { k ->
+                    val o = shared.optJSONObject(k)
+                    o?.optJSONArray("images")?.let { arr ->
+                        val out = mutableListOf<String>()
+                        for (i in 0 until arr.length()) out.add(arr.optString(i))
+                        if (out.isNotEmpty()) return out
+                    }
                 }
             }
-        }
-    } catch (_: Exception) {}
-    return null
-}
+        } catch (_: Exception) {}
+        return null
+    }
 
-private fun extractSlugFromDocLocation(location: String?): String {
-    if (location == null) return ""
-    val parts = location.split("/").filter { it.isNotBlank() }
-    val idx = parts.indexOf("title")
-    if (idx >= 0 && idx + 1 < parts.size) return parts[idx + 1]
-    return parts.lastOrNull() ?: ""
+    private fun extractSlugFromDocLocation(location: String?): String {
+        if (location == null) return ""
+        val parts = location.split("/").filter { it.isNotBlank() }
+        val idx = parts.indexOf("title")
+        if (idx >= 0 && idx + 1 < parts.size) return parts[idx + 1]
+        return parts.lastOrNull() ?: ""
+    }
 }
