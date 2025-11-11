@@ -7,7 +7,6 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import okhttp3.Headers
 import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
@@ -22,13 +21,12 @@ class Aurora : HttpSource() {
     override val lang = "en"
     override val supportsLatest = true
 
-    // ✅ Necesario: override headers correctamente
-    override val headers: Headers = Headers.Builder()
+    // ✅ usar headersBuilder en lugar de override val headers
+    override fun headersBuilder() = super.headersBuilder()
         .add("User-Agent", "Mozilla/5.0 (Android) Mihon/1.0")
         .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-        .build()
 
-    // --- Popular (browse) ---
+    // --- Popular ---
     override fun popularMangaRequest(page: Int): Request {
         val url = "$baseUrl/browser?page=$page"
         return GET(url, headers)
@@ -66,6 +64,10 @@ class Aurora : HttpSource() {
 
         return MangasPage(mangas, false)
     }
+
+    // --- Latest (usa mismo parseo que popular) ---
+    override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
+    override fun latestUpdatesParse(response: Response): MangasPage = popularMangaParse(response)
 
     // --- Search ---
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
@@ -125,11 +127,8 @@ class Aurora : HttpSource() {
                 s.author = md.optString("author", doc.selectFirst(".author")?.text())
                 val genres = mutableListOf<String>()
                 val arr = md.optJSONArray("genres")
-                if (arr != null) {
-                    for (i in 0 until arr.length()) genres.add(arr.optString(i))
-                } else {
-                    doc.select(".genres a").forEach { genres.add(it.text()) }
-                }
+                if (arr != null) for (i in 0 until arr.length()) genres.add(arr.optString(i))
+                else doc.select(".genres a").forEach { genres.add(it.text()) }
                 s.genre = genres.joinToString(", ")
                 s.thumbnail_url = md.optString("cover", s.thumbnail_url)
                 s.status = SManga.UNKNOWN
@@ -221,7 +220,6 @@ class Aurora : HttpSource() {
         return pages
     }
 
-    // ✅ Requerido por HttpSource
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException("Not used")
     }
