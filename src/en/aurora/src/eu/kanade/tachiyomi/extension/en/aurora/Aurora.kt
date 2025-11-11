@@ -127,8 +127,13 @@ class Aurora : HttpSource() {
                 s.author = md.optString("author", doc.selectFirst(".author")?.text())
                 val genres = mutableListOf<String>()
                 val arr = md.optJSONArray("genres")
-                if (arr != null) for (i in 0 until arr.length()) genres.add(arr.optString(i))
-                else doc.select(".genres a").forEach { genres.add(it.text()) }
+                if (arr != null) {
+                    for (i in 0 until arr.length()) {
+                        genres.add(arr.optString(i))
+                    }
+                } else {
+                    doc.select(".genres a").forEach { genres.add(it.text()) }
+                }
                 s.genre = genres.joinToString(", ")
                 s.thumbnail_url = md.optString("cover", s.thumbnail_url)
                 s.status = SManga.UNKNOWN
