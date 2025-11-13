@@ -13,7 +13,6 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
 import kotlinx.serialization.json.Json
@@ -189,20 +188,20 @@ class Aurora : HttpSource(), ConfigurableSource {
     @kotlinx.serialization.Serializable
     private data class ComixChapterResponse(
         val status: Int,
-        val result: ComixChapterResult
+        val result: ComixChapterResult,
     )
 
     @kotlinx.serialization.Serializable
     private data class ComixChapterResult(
         val chapter_id: Int,
-        val images: List<String>
+        val images: List<String>,
     )
 
     override fun pageListParse(response: Response): List<Page> {
         val res: ComixChapterResponse = response.parseAs()
 
         val images = res.result.images
-         if (images.isEmpty()) {
+        if (images.isEmpty()) {
             throw Exception("No images found for chapter ${res.result.chapter_id}")
         }
 
