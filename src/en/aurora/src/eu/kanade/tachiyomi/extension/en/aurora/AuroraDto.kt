@@ -212,12 +212,15 @@ class Chapter(
     )
 
     fun toSChapter(mangaId: String) = SChapter.create().apply {
-        url = "title/$mangaId/$chapterId"
+        // AHORA la URL contiene solo el ID real del capítulo
+        url = chapterId.toString()
+
         name = buildString {
             append("Chapter ")
             append(this@Chapter.number.toString().removeSuffix(".0"))
             this@Chapter.name.takeUnless { it.isEmpty() }?.let { append(" - $it") }
         }
+
         date_upload = this@Chapter.updatedAt * 1000
         chapter_number = this@Chapter.number.toFloat()
         scanlator = this@Chapter.scanlationGroup?.name ?: "Unknown"
