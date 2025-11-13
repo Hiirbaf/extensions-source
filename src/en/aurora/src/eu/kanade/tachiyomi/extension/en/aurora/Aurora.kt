@@ -201,6 +201,7 @@ class Aurora : HttpSource(), ConfigurableSource {
         val bodyStr = response.body!!.string()
         Log.e("COMIX_DEBUG", "API RESPONSE => $bodyStr")
 
+        // ← IMPORTANTE: especificar el tipo aquí
         val res = json.decodeFromString<ComixChapterResponse>(bodyStr)
 
         val images = res.result.images
