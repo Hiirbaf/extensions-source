@@ -183,17 +183,20 @@ class Aurora : HttpSource(), ConfigurableSource {
 
     /******************************* Page List (Reader) ************************************/
     override fun pageListRequest(chapter: SChapter): Request {
-        // Extrae el último segmento numérico
-        val id = chapter.url.substringAfterLast("/")
+        val chapterId = chapter.url.substringAfterLast("/")
 
-        val url = "${apiUrl}chapters/$id"
+        val url = "${apiUrl}chapters/$chapterId"
         return GET(url, headers)
+    }
+
+    override fun getChapterUrl(chapter: SChapter): String {
+        return "$baseUrl${chapter.url}"
     }
 
     @kotlinx.serialization.Serializable
     private data class ComixChapterResponse(
         val status: Int,
-        val result: ComixChapterResult,
+        val result: ComixChapterResult?,
     )
 
     @kotlinx.serialization.Serializable
@@ -206,15 +209,15 @@ class Aurora : HttpSource(), ConfigurableSource {
         val bodyStr = response.body!!.string()
         Log.e("COMIX_DEBUG", "API RESPONSE => $bodyStr")
 
-        // ← IMPORTANTE: especificar el tipo aquí
         val res = json.decodeFromString<ComixChapterResponse>(bodyStr)
 
-        val images = res.result.images
-        if (images.isEmpty()) {
-            throw Exception("No images found for chapter ${res.result.chapter_id}")
+        val result = res.result ?: throw Exception("Chapter not found (API returned null)")
+
+        if (result.images.isEmpty()) {
+            throw Exception("No images found for chapter ${result.chapter_id}")
         }
 
-        return images.mapIndexed { index, url ->
+        return result.images.mapIndexed { index, url ->
             Page(index, imageUrl = url)
         }
     }
