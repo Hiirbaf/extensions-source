@@ -74,11 +74,11 @@ class Aurora : HttpSource(), ConfigurableSource {
     override fun latestUpdatesParse(response: Response): MangasPage = parseSearchResponse(response)
 
     /******************************* SEARCHING ***************************************/
-    override fun getFilterList() = ComixFilters().getFilterList()
+    override fun getFilterList() = AuroraFilters().getFilterList()
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas")
-        filters.filterIsInstance<ComixFilters.UriFilter>().forEach { it.addToUri(url) }
+        filters.filterIsInstance<AuroraFilters.UriFilter>().forEach { it.addToUri(url) }
 
         if (query.isNotBlank()) {
             url.addQueryParameter("keyword", query)
@@ -116,7 +116,7 @@ class Aurora : HttpSource(), ConfigurableSource {
             }
 
             // Query each term type, because Comix doesn't support checking everything within one request
-            ComixFilters.ApiTerms.values().forEach { apiTerm ->
+            AuroraFilters.ApiTerms.values().forEach { apiTerm ->
                 val termsRequest =
                     GET(termsUrlBuilder.setQueryParameter("type", apiTerm.term).build(), headers)
                 val termsResponse = client.newCall(termsRequest).execute().parseAs<TermResponse>()
@@ -129,7 +129,7 @@ class Aurora : HttpSource(), ConfigurableSource {
 
         // Check if we are missing demographics
         if (terms.count() < manga.termIds.count()) {
-            val dems = ComixFilters.getDemographics().filter { (_, id) -> manga.termIds.contains(id.toInt()) }
+            val dems = AuroraFilters.getDemographics().filter { (_, id) -> manga.termIds.contains(id.toInt()) }
                 .map { (name, id) -> Term(id.toInt(), "demographic", name, name, 0) }
             terms.addAll(dems)
         }
