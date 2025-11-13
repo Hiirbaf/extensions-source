@@ -198,7 +198,10 @@ class Aurora : HttpSource(), ConfigurableSource {
     )
 
     override fun pageListParse(response: Response): List<Page> {
-        val res: ComixChapterResponse = response.parseAs()
+        val bodyStr = response.body!!.string()
+        Log.e("COMIX_DEBUG", "API RESPONSE => $bodyStr")
+
+        val res = json.decodeFromString<ComixChapterResponse>(bodyStr)
 
         val images = res.result.images
         if (images.isEmpty()) {
