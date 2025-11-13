@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.extension.en.aurora
 
 import android.content.SharedPreferences
-import android.util.Log
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
@@ -38,12 +37,15 @@ class Aurora : HttpSource(), ConfigurableSource {
 
     private fun parseSearchResponse(response: Response): MangasPage {
         val res: SearchResponse = response.parseAs()
-        val manga =
-            res.result.items.map { manga -> manga.toBasicSManga(preferences.posterQuality()) }
+        val manga = res.result.items.map {
+            it.toBasicSManga(preferences.posterQuality())
+        }
         return MangasPage(manga, res.result.pagination.page < res.result.pagination.lastPage)
     }
 
-    override val client = network.cloudflareClient.newBuilder().rateLimit(5, 2).build()
+    override val client = network.cloudflareClient.newBuilder()
+        .rateLimit(5, 2)
+        .build()
 
     override fun headersBuilder() = super.headersBuilder().add("Referer", baseUrl)
 
@@ -53,12 +55,12 @@ class Aurora : HttpSource(), ConfigurableSource {
 
     /******************************* POPULAR MANGA ************************************/
     override fun popularMangaRequest(page: Int): Request {
-        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas")
+        val url = apiUrl.toHttpUrl().newBuilder()
+            .addPathSegment("mangas")
             .addQueryParameter("order[views_30d]", "desc")
             .addQueryParameter("limit", "28")
-            .addQueryParameter("page", page.toString()).build()
-
-        Log.d("comix", url.toString())
+            .addQueryParameter("page", page.toString())
+            .build()
 
         return GET(url, headers)
     }
@@ -67,20 +69,28 @@ class Aurora : HttpSource(), ConfigurableSource {
 
     /******************************* LATEST MANGA ************************************/
     override fun latestUpdatesRequest(page: Int): Request {
-        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas")
-            .addQueryParameter("order[chapter_updated_at]", "desc").addQueryParameter("limit", "28")
-            .addQueryParameter("page", page.toString()).build()
+        val url = apiUrl.toHttpUrl().newBuilder()
+            .addPathSegment("mangas")
+            .addQueryParameter("order[chapter_updated_at]", "desc")
+            .addQueryParameter("limit", "28")
+            .addQueryParameter("page", page.toString())
+            .build()
+
         return GET(url, headers)
     }
 
-    override fun latestUpdatesParse(response: Response): MangasPage = parseSearchResponse(response)
+    override fun latestUpdatesParse(response: Response): MangasPage =
+        parseSearchResponse(response)
 
     /******************************* SEARCHING ***************************************/
     override fun getFilterList() = AuroraFilters().getFilterList()
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas")
-        filters.filterIsInstance<AuroraFilters.UriFilter>().forEach { it.addToUri(url) }
+
+        filters.filterIsInstance<AuroraFilters.UriFilter>().forEach {
+            it.addToUri(url)
+        }
 
         if (query.isNotBlank()) {
             url.addQueryParameter("keyword", query)
@@ -92,106 +102,105 @@ class Aurora : HttpSource(), ConfigurableSource {
         return GET(url.build(), headers)
     }
 
-    override fun searchMangaParse(response: Response): MangasPage = parseSearchResponse(response)
+    override fun searchMangaParse(response: Response): MangasPage =
+        parseSearchResponse(response)
 
     /******************************* Single Manga Page *******************************/
     override fun mangaDetailsRequest(manga: SManga): Request {
-        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas").addPathSegment(manga.url)
+        val url = apiUrl.toHttpUrl().newBuilder()
+            .addPathSegment("mangas")
+            .addPathSegment(manga.url)
             .build()
 
         return GET(url, headers)
     }
 
     override fun mangaDetailsParse(response: Response): SManga {
-        val mangaResponse: SingleMangaResponse = response.parseAs()
-        val manga = mangaResponse.result
+        val data: SingleMangaResponse = response.parseAs()
+        val manga = data.result
         val terms = mutableListOf<Term>()
 
-        // Check the manga's term ids against all terms to match them and aggregate the results
-        // (Genres, Artists, Authors, etc)
         if (manga.termIds.isNotEmpty()) {
-            val termsUrlBuilder = apiUrl.toHttpUrl().newBuilder().addPathSegment("terms")
+            val termsUrlBuilder = apiUrl.toHttpUrl().newBuilder()
+                .addPathSegment("terms")
                 .addQueryParameter("limit", manga.termIds.size.toString())
 
             manga.termIds.forEach { id ->
                 termsUrlBuilder.addQueryParameter("ids[]", id.toString())
             }
 
-            // Query each term type, because Comix doesn't support checking everything within one request
             AuroraFilters.ApiTerms.values().forEach { apiTerm ->
-                val termsRequest =
-                    GET(termsUrlBuilder.setQueryParameter("type", apiTerm.term).build(), headers)
-                val termsResponse = client.newCall(termsRequest).execute().parseAs<TermResponse>()
-
-                if (termsResponse.result.items.isNotEmpty()) {
-                    terms.addAll(termsResponse.result.items)
-                }
+                val req = GET(builder.setQueryParameter("type", apiTerm.term).build(), headers)
+                val res = client.newCall(req).execute().parseAs<TermResponse>()
+                terms.addAll(res.result.items)
             }
         }
 
-        // Check if we are missing demographics
         if (terms.count() < manga.termIds.count()) {
-            val dems = AuroraFilters.getDemographics().filter { (_, id) -> manga.termIds.contains(id.toInt()) }
-                .map { (name, id) -> Term(id.toInt(), "demographic", name, name, 0) }
-            terms.addAll(dems)
+            val demographics = AuroraFilters.getDemographics()
+                .filter { (_, id) -> manga.termIds.contains(id.toInt()) }
+                .map { (name, id) ->
+                    Term(id.toInt(), "demographic", name, name, 0)
+                }
+            terms.addAll(demographics)
         }
 
         return manga.toSManga(preferences.posterQuality(), terms)
     }
 
-    override fun getMangaUrl(manga: SManga): String {
-        return "$baseUrl/title${manga.url}"
-    }
+    override fun getMangaUrl(manga: SManga): String =
+        "$baseUrl/title${manga.url}"
 
-    /******************************* Chapters List *******************************/
+    /******************************* POPULAR MANGA ************************************/
     override fun chapterListRequest(manga: SManga): Request {
-        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas").addPathSegment(manga.url)
-            .addPathSegment("chapters").addQueryParameter("order[number]", "desc")
-            .addQueryParameter("limit", "100").build()
+        val url = apiUrl.toHttpUrl().newBuilder()
+            .addPathSegment("mangas")
+            .addPathSegment(manga.url)
+            .addPathSegment("chapters")
+            .addQueryParameter("order[number]", "desc")
+            .addQueryParameter("limit", "100")
+            .build()
 
         return GET(url, headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        if (response.code == 204) {
-            return emptyList()
-        }
+        if (response.code == 204) return emptyList()
 
         val result: ChapterResponse = response.parseAs()
 
         val chapters = result.result.items.toMutableList()
-        val requestUrl = response.request.url
-        val mangaHashId = requestUrl.pathSegments[3].removePrefix("/")
+        val baseUrl = response.request.url
 
-        var hasNextPage = result.result.pagination.lastPage > result.result.pagination.page
+        var hasNext = result.result.pagination.lastPage > result.result.pagination.page
         var page = result.result.pagination.page
 
-        while (hasNextPage) {
-            val url = requestUrl.newBuilder().addQueryParameter("page", (++page).toString()).build()
+        while (hasNext) {
+            val nextUrl = baseUrl.newBuilder()
+                .addQueryParameter("page", (++page).toString())
+                .build()
 
-            val newResponse = client.newCall(GET(url, headers)).execute()
+            val res = client.newCall(GET(nextUrl, headers)).execute()
+                .parseAs<ChapterResponse>()
 
-            val newResult: ChapterResponse = newResponse.parseAs()
-
-            chapters.addAll(newResult.result.items)
-
-            hasNextPage = newResult.result.pagination.lastPage > newResult.result.pagination.page
+            chapters.addAll(res.result.items)
+            hasNext = res.result.pagination.lastPage > res.result.pagination.page
         }
 
-        return chapters.map { chapter -> chapter.toSChapter(mangaHashId) }
+        val mangaHash = baseUrl.pathSegments.last { it != "chapters" }
+
+        return chapters.map { it.toSChapter(mangaHash) }
     }
 
     /******************************* Page List (Reader) ************************************/
     override fun pageListRequest(chapter: SChapter): Request {
         val chapterId = chapter.url.substringAfterLast("/")
-
         val url = "${apiUrl}chapters/$chapterId"
         return GET(url, headers)
     }
 
-    override fun getChapterUrl(chapter: SChapter): String {
-        return "$baseUrl${chapter.url}"
-    }
+    override fun getChapterUrl(chapter: SChapter): String =
+        "$baseUrl${chapter.url}"
 
     @kotlinx.serialization.Serializable
     private data class ComixChapterResponse(
@@ -206,12 +215,9 @@ class Aurora : HttpSource(), ConfigurableSource {
     )
 
     override fun pageListParse(response: Response): List<Page> {
-        val bodyStr = response.body!!.string()
-        Log.e("COMIX_DEBUG", "API RESPONSE => $bodyStr")
-
-        val res = json.decodeFromString<ComixChapterResponse>(bodyStr)
-
-        val result = res.result ?: throw Exception("Chapter not found (API returned null)")
+        val body = response.body!!.string()
+        val res = json.decodeFromString<ComixChapterResponse>(body)
+        val result = res.result ?: throw Exception("Chapter not found")
 
         if (result.images.isEmpty()) {
             throw Exception("No images found for chapter ${result.chapter_id}")
