@@ -212,8 +212,7 @@ class Chapter(
     )
 
     fun toSChapter(mangaId: String) = SChapter.create().apply {
-        // AHORA la URL contiene solo el ID real del capítulo
-        url = chapterId.toString()
+        url = "title/$mangaId/$chapterId"
 
         name = buildString {
             append("Chapter ")
