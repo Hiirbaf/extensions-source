@@ -183,7 +183,9 @@ class Aurora : HttpSource(), ConfigurableSource {
 
     /******************************* Page List (Reader) ************************************/
     override fun pageListRequest(chapter: SChapter): Request {
-        val id = chapter.url
+        // Extrae el último segmento numérico
+        val id = chapter.url.substringAfterLast("/")
+
         val url = "${apiUrl}chapters/$id"
         return GET(url, headers)
     }
