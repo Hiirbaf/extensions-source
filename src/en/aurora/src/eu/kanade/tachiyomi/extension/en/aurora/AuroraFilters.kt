@@ -1,11 +1,11 @@
-package eu.kanade.tachiyomi.extension.en.comix
+package eu.kanade.tachiyomi.extension.en.aurora
 
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import okhttp3.HttpUrl
 import java.util.Calendar
 
-class ComixFilters {
+class AuroraFilters {
     interface UriFilter {
         fun addToUri(builder: HttpUrl.Builder)
     }
