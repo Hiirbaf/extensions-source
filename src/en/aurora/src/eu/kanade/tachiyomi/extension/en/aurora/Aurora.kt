@@ -130,7 +130,7 @@ class Aurora : HttpSource(), ConfigurableSource {
             }
 
             AuroraFilters.ApiTerms.values().forEach { apiTerm ->
-                val req = GET(builder.setQueryParameter("type", apiTerm.term).build(), headers)
+                val req = GET(termsUrlBuilder.setQueryParameter("type", apiTerm.term).build(), headers)
                 val res = client.newCall(req).execute().parseAs<TermResponse>()
                 terms.addAll(res.result.items)
             }
