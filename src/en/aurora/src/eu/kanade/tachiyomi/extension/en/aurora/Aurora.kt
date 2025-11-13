@@ -31,7 +31,10 @@ class Aurora : HttpSource(), ConfigurableSource {
 
     private val preferences: SharedPreferences = getPreferences()
 
-    private val json: Json by injectLazy()
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
 
     private fun parseSearchResponse(response: Response): MangasPage {
         val res: SearchResponse = response.parseAs()
