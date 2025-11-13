@@ -181,24 +181,34 @@ class Aurora : HttpSource(), ConfigurableSource {
 
     /******************************* Page List (Reader) ************************************/
     override fun pageListRequest(chapter: SChapter): Request {
-        return super.pageListRequest(chapter)
+        val id = chapter.url
+        val url = "${apiUrl}chapters/$id"
+        return GET(url, headers)
     }
 
-    // Doesn't work cause Next.js
-    override fun pageListParse(response: Response): List<Page> {
-        val doc = response.asJsoup()
-        val data = doc.select("div.viewer-wrapper > div.read-viewer.longsrtip > div.page > img")
+    @kotlinx.serialization.Serializable
+    private data class ComixChapterResponse(
+        val status: Int,
+        val result: ComixChapterResult
+    )
 
-        if (data.isEmpty()) {
-            Log.d("comix", "data is null")
-            throw Exception("Could not parse reader page")
+    @kotlinx.serialization.Serializable
+    private data class ComixChapterResult(
+        val chapter_id: Int,
+        val images: List<String>
+    )
+
+    override fun pageListParse(response: Response): List<Page> {
+        val res: ComixChapterResponse = response.parseAs()
+
+        val images = res.result.images
+         if (images.isEmpty()) {
+            throw Exception("No images found for chapter ${res.result.chapter_id}")
         }
 
-        return data.mapIndexed { index, element -> Page(index, imageUrl = element.attr("src")) }
-    }
-
-    override fun getChapterUrl(chapter: SChapter): String {
-        return "$baseUrl/${chapter.url}"
+        return images.mapIndexed { index, url ->
+            Page(index, imageUrl = url)
+        }
     }
 
     /******************************* PREFERENCES ************************************/
