@@ -1,355 +1,221 @@
 package eu.kanade.tachiyomi.extension.en.aurora
 
+import android.content.SharedPreferences
+import android.util.Log
+import androidx.preference.ListPreference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.interceptor.rateLimit
+import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferences
+import keiyoushi.utils.parseAs
+import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
-import org.json.JSONObject
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import java.net.URLEncoder
+import uy.kohesive.injekt.injectLazy
 
-class Aurora : HttpSource() {
+class Aurora : HttpSource(), ConfigurableSource {
 
-    override val name = "Comix.to"
-    override val baseUrl = "https://comix.to"
+    override val name = "Comix"
+    override val baseUrl = "https://comix.to/"
+    private val apiUrl = "https://comix.to/api/v2/"
     override val lang = "en"
     override val supportsLatest = true
 
-    // ✅ usar headersBuilder en lugar de override val headers
-    override fun headersBuilder() = super.headersBuilder()
-        .add("User-Agent", "Mozilla/5.0 (Android) Mihon/1.0")
-        .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+    private val preferences: SharedPreferences = getPreferences()
 
-    // --- Popular ---
+    private val json: Json by injectLazy()
+
+    private fun parseSearchResponse(response: Response): MangasPage {
+        val res: SearchResponse = response.parseAs()
+        val manga =
+            res.result.items.map { manga -> manga.toBasicSManga(preferences.posterQuality()) }
+        return MangasPage(manga, res.result.pagination.page < res.result.pagination.lastPage)
+    }
+
+    override val client = network.cloudflareClient.newBuilder().rateLimit(5, 2).build()
+
+    override fun headersBuilder() = super.headersBuilder().add("Referer", baseUrl)
+
+    override fun imageUrlParse(response: Response): String {
+        throw UnsupportedOperationException()
+    }
+
+    /******************************* POPULAR MANGA ************************************/
     override fun popularMangaRequest(page: Int): Request {
-        val url = "$baseUrl/browser?page=$page"
+        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas")
+            .addQueryParameter("order[views_30d]", "desc")
+            .addQueryParameter("limit", "28")
+            .addQueryParameter("page", page.toString()).build()
+
+        Log.d("comix", url.toString())
+
         return GET(url, headers)
     }
 
-    override fun popularMangaParse(response: Response): MangasPage {
-        val html = response.body!!.string()
-        val doc = Jsoup.parse(html)
-        val mangas = mutableListOf<SManga>()
+    override fun popularMangaParse(response: Response): MangasPage = parseSearchResponse(response)
 
-        val json = extractNextDataJson(doc)
-        if (json != null) {
-            val list = extractListFromNextJson(json)
-            if (list != null) {
-                list.forEach { obj ->
-                    val m = SManga.create()
-                    m.title = obj.optString("title", obj.optString("name", "Unknown"))
-                    m.thumbnail_url = obj.optString("cover", null)
-                    val slug = obj.optString("slug", obj.optString("id", ""))
-                    m.url = if (slug.startsWith("/")) slug else "/title/$slug"
-                    mangas.add(m)
-                }
-                return MangasPage(mangas, false)
-            }
-        }
-
-        doc.select(".card, .comic-card, .comic .item").forEach { el ->
-            val m = SManga.create()
-            m.title = el.selectFirst(".title, .card-title, h3")?.text() ?: ""
-            m.thumbnail_url = el.selectFirst("img")?.attr("data-src") ?: el.selectFirst("img")?.attr("src")
-            val href = el.selectFirst("a")?.attr("href") ?: ""
-            m.url = if (href.startsWith("/")) href else "/$href"
-            mangas.add(m)
-        }
-
-        return MangasPage(mangas, false)
+    /******************************* LATEST MANGA ************************************/
+    override fun latestUpdatesRequest(page: Int): Request {
+        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas")
+            .addQueryParameter("order[chapter_updated_at]", "desc").addQueryParameter("limit", "28")
+            .addQueryParameter("page", page.toString()).build()
+        return GET(url, headers)
     }
 
-    // --- Latest (usa mismo parseo que popular) ---
-    override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
-    override fun latestUpdatesParse(response: Response): MangasPage = popularMangaParse(response)
+    override fun latestUpdatesParse(response: Response): MangasPage = parseSearchResponse(response)
 
-    // --- Search ---
+    /******************************* SEARCHING ***************************************/
+    override fun getFilterList() = ComixFilters().getFilterList()
+
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val q = URLEncoder.encode(query, "utf-8")
-        val url = "$baseUrl/search?q=$q&page=$page"
-        return GET(url, headers)
-    }
+        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas")
+        filters.filterIsInstance<ComixFilters.UriFilter>().forEach { it.addToUri(url) }
 
-    override fun searchMangaParse(response: Response): MangasPage {
-        val html = response.body!!.string()
-        val doc = Jsoup.parse(html)
-        val mangas = mutableListOf<SManga>()
-
-        val json = extractNextDataJson(doc)
-        val list = if (json != null) extractListFromNextJson(json) else null
-        if (list != null) {
-            list.forEach { obj ->
-                val m = SManga.create()
-                m.title = obj.optString("title", obj.optString("name", ""))
-                m.thumbnail_url = obj.optString("cover", null)
-                val slug = obj.optString("slug", "")
-                m.url = if (slug.startsWith("/")) slug else "/title/$slug"
-                mangas.add(m)
-            }
-            return MangasPage(mangas, false)
+        if (query.isNotBlank()) {
+            url.addQueryParameter("keyword", query)
         }
 
-        doc.select(".search-result .card, .card, .comic-card").forEach { el ->
-            val m = SManga.create()
-            m.title = el.selectFirst(".title, h3")?.text() ?: ""
-            m.thumbnail_url = el.selectFirst("img")?.attr("data-src") ?: el.selectFirst("img")?.attr("src")
-            val href = el.selectFirst("a")?.attr("href") ?: ""
-            m.url = if (href.startsWith("/")) href else "/$href"
-            mangas.add(m)
-        }
+        url.addQueryParameter("limit", "28")
+            .addQueryParameter("page", page.toString())
 
-        return MangasPage(mangas, false)
+        return GET(url.build(), headers)
     }
 
-    // --- Details ---
+    override fun searchMangaParse(response: Response): MangasPage = parseSearchResponse(response)
+
+    /******************************* Single Manga Page *******************************/
     override fun mangaDetailsRequest(manga: SManga): Request {
-        val url = if (manga.url.startsWith("/")) baseUrl + manga.url else manga.url
+        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas").addPathSegment(manga.url)
+            .build()
+
         return GET(url, headers)
     }
 
     override fun mangaDetailsParse(response: Response): SManga {
-        val html = response.body!!.string()
-        val doc = Jsoup.parse(html)
-        val s = SManga.create()
+        val mangaResponse: SingleMangaResponse = response.parseAs()
+        val manga = mangaResponse.result
+        val terms = mutableListOf<Term>()
 
-        val json = extractNextDataJson(doc)
-        if (json != null) {
-            val md = extractMangaObjectFromNextJson(json, doc.location())
-            if (md != null) {
-                s.title = md.optString("title", s.title)
-                s.description = md.optString("description", doc.selectFirst(".summary, .desc")?.text() ?: "")
-                s.author = md.optString("author", doc.selectFirst(".author")?.text())
-                val genres = mutableListOf<String>()
-                val arr = md.optJSONArray("genres")
-                if (arr != null) {
-                    for (i in 0 until arr.length()) {
-                        genres.add(arr.optString(i))
-                    }
-                } else {
-                    doc.select(".genres a").forEach { genres.add(it.text()) }
+        // Check the manga's term ids against all terms to match them and aggregate the results
+        // (Genres, Artists, Authors, etc)
+        if (manga.termIds.isNotEmpty()) {
+            val termsUrlBuilder = apiUrl.toHttpUrl().newBuilder().addPathSegment("terms")
+                .addQueryParameter("limit", manga.termIds.size.toString())
+
+            manga.termIds.forEach { id ->
+                termsUrlBuilder.addQueryParameter("ids[]", id.toString())
+            }
+
+            // Query each term type, because Comix doesn't support checking everything within one request
+            ComixFilters.ApiTerms.values().forEach { apiTerm ->
+                val termsRequest =
+                    GET(termsUrlBuilder.setQueryParameter("type", apiTerm.term).build(), headers)
+                val termsResponse = client.newCall(termsRequest).execute().parseAs<TermResponse>()
+
+                if (termsResponse.result.items.isNotEmpty()) {
+                    terms.addAll(termsResponse.result.items)
                 }
-                s.genre = genres.joinToString(", ")
-                s.thumbnail_url = md.optString("cover", s.thumbnail_url)
-                s.status = SManga.UNKNOWN
-                return s
             }
         }
 
-        s.title = doc.selectFirst("h1, .manga-title")?.text() ?: s.title
-        s.description = doc.selectFirst(".summary, .desc")?.text() ?: ""
-        s.author = doc.selectFirst(".author")?.text()
-        s.thumbnail_url = doc.selectFirst(".cover img")?.attr("src")
-        s.genre = doc.select(".genres a").joinToString(", ") { it.text() }
-        s.status = SManga.UNKNOWN
-        return s
+        // Check if we are missing demographics
+        if (terms.count() < manga.termIds.count()) {
+            val dems = ComixFilters.getDemographics().filter { (_, id) -> manga.termIds.contains(id.toInt()) }
+                .map { (name, id) -> Term(id.toInt(), "demographic", name, name, 0) }
+            terms.addAll(dems)
+        }
+
+        return manga.toSManga(preferences.posterQuality(), terms)
     }
 
-    // --- Chapters ---
+    override fun getMangaUrl(manga: SManga): String {
+        return "$baseUrl/title${manga.url}"
+    }
+
+    /******************************* Chapters List *******************************/
     override fun chapterListRequest(manga: SManga): Request {
-        val url = if (manga.url.startsWith("/")) baseUrl + manga.url else manga.url
+        val url = apiUrl.toHttpUrl().newBuilder().addPathSegment("mangas").addPathSegment(manga.url)
+            .addPathSegment("chapters").addQueryParameter("order[number]", "desc")
+            .addQueryParameter("limit", "100").build()
+
         return GET(url, headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val html = response.body!!.string()
-        val doc = Jsoup.parse(html)
-        val chapters = mutableListOf<SChapter>()
-
-        val json = extractNextDataJson(doc)
-        if (json != null) {
-            val chList = extractChaptersFromNextJson(json)
-            if (chList != null) {
-                chList.forEach { obj ->
-                    val c = SChapter.create()
-                    c.name = obj.optString("title", obj.optString("name", "Chapter"))
-                    val slug = obj.optString("slug", obj.optString("id", ""))
-                    c.url = if (slug.startsWith("/")) slug else "/title/${extractSlugFromDocLocation(doc.location())}/$slug"
-                    c.date_upload = obj.optLong("timestamp", 0L)
-                    chapters.add(c)
-                }
-                return chapters
-            }
+        if (response.code == 204) {
+            return emptyList()
         }
 
-        doc.select(".chapters a, .chapter-list a, .chapters li a, .chapter-item a").forEach { el ->
-            val c = SChapter.create()
-            c.name = el.text().trim()
-            val href = el.attr("href")
-            c.url = if (href.startsWith("/")) href else "/$href"
-            chapters.add(c)
+        val result: ChapterResponse = response.parseAs()
+
+        val chapters = result.result.items.toMutableList()
+        val requestUrl = response.request.url
+        val mangaHashId = requestUrl.pathSegments[3].removePrefix("/")
+
+        var hasNextPage = result.result.pagination.lastPage > result.result.pagination.page
+        var page = result.result.pagination.page
+
+        while (hasNextPage) {
+            val url = requestUrl.newBuilder().addQueryParameter("page", (++page).toString()).build()
+
+            val newResponse = client.newCall(GET(url, headers)).execute()
+
+            val newResult: ChapterResponse = newResponse.parseAs()
+
+            chapters.addAll(newResult.result.items)
+
+            hasNextPage = newResult.result.pagination.lastPage > newResult.result.pagination.page
         }
 
-        return chapters
+        return chapters.map { chapter -> chapter.toSChapter(mangaHashId) }
     }
 
-    // --- Pages ---
+    /******************************* Page List (Reader) ************************************/
     override fun pageListRequest(chapter: SChapter): Request {
-        val url = if (chapter.url.startsWith("/")) baseUrl + chapter.url else chapter.url
-        return GET(url, headers)
+        return super.pageListRequest(chapter)
     }
 
+    // Doesn't work cause Next.js
     override fun pageListParse(response: Response): List<Page> {
-        val html = response.body!!.string()
-        val doc = Jsoup.parse(html)
-        val pages = mutableListOf<Page>()
+        val doc = response.asJsoup()
+        val data = doc.select("div.viewer-wrapper > div.read-viewer.longsrtip > div.page > img")
 
-        val json = extractNextDataJson(doc)
-        val imgsFromJson = extractImageListFromNextJson(json)
-        if (imgsFromJson != null && imgsFromJson.isNotEmpty()) {
-            imgsFromJson.forEachIndexed { i, url -> pages.add(Page(i, "", url)) }
-            return pages
+        if (data.isEmpty()) {
+            Log.d("comix", "data is null")
+            throw Exception("Could not parse reader page")
         }
 
-        val imgEls = doc.select(".reader img, .page img, .viewer img, .comic-page img")
-        imgEls.forEachIndexed { i, el ->
-            val src = el.attr("data-src").ifEmpty { el.attr("src") }
-            if (src.isNotBlank()) pages.add(Page(i, "", src))
-        }
-
-        if (pages.isEmpty()) {
-            val scriptWithImgs = doc.select("script").firstOrNull { it.data().contains("images") || it.data().contains("pages") }
-            scriptWithImgs?.let {
-                val text = it.data()
-                val regex = """https?://[^\s'"]+\.(?:jpg|jpeg|png|webp)""".toRegex()
-                val matches = regex.findAll(text).map { m -> m.value }.toList()
-                matches.forEachIndexed { i, u -> pages.add(Page(i, "", u)) }
-            }
-        }
-
-        return pages
+        return data.mapIndexed { index, element -> Page(index, imageUrl = element.attr("src")) }
     }
 
-    override fun imageUrlParse(response: Response): String {
-        throw UnsupportedOperationException("Not used")
+    override fun getChapterUrl(chapter: SChapter): String {
+        return "$baseUrl/${chapter.url}"
     }
 
-    // --- Helpers ---
-    private fun extractNextDataJson(doc: Document): JSONObject? {
-        try {
-            val script = doc.selectFirst("script#__NEXT_DATA__, script:containsData(__NEXT_DATA__), script:containsData(sharedData)")
-            if (script != null) {
-                val data = script.data()
-                val start = data.indexOf('{')
-                val end = data.lastIndexOf('}')
-                if (start >= 0 && end > start) {
-                    val jsonText = data.substring(start, end + 1)
-                    return JSONObject(jsonText)
-                }
-            }
-            doc.select("script").forEach { s ->
-                val t = s.data()
-                if (t.contains("window.__NEXT_DATA__") || t.contains("__NEXT_DATA__")) {
-                    val idx = t.indexOf('{')
-                    val idy = t.lastIndexOf('}')
-                    if (idx >= 0 && idy > idx) return JSONObject(t.substring(idx, idy + 1))
-                }
-            }
-        } catch (_: Exception) { }
-        return null
+    /******************************* PREFERENCES ************************************/
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        ListPreference(screen.context).apply {
+            key = PREF_POSTER_QUALITY
+            title = "Thumbnail Quality"
+            summary = "Change the quality of the thumbnail images. Large is the default."
+            entryValues = arrayOf("small", "medium", "large")
+            entries = arrayOf("Small", "Medium", "Large")
+            setDefaultValue("large")
+        }.let(screen::addPreference)
     }
 
-    private fun extractListFromNextJson(json: JSONObject): List<JSONObject>? {
-        try {
-            val props = json.optJSONObject("props") ?: return null
-            val pageProps = props.optJSONObject("pageProps") ?: return null
-            val candidates = listOf("items", "mangas", "data", "results", "titles")
-            for (c in candidates) {
-                if (pageProps.has(c)) {
-                    val arr = pageProps.optJSONArray(c) ?: continue
-                    val out = mutableListOf<JSONObject>()
-                    for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
-                    if (out.isNotEmpty()) return out
-                }
-            }
-            val shared = pageProps.optJSONObject("sharedData") ?: pageProps.optJSONObject("initialData")
-            if (shared != null) {
-                val arr = shared.optJSONArray("items")
-                if (arr != null) {
-                    val out = mutableListOf<JSONObject>()
-                    for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
-                    if (out.isNotEmpty()) return out
-                }
-            }
-        } catch (_: Exception) {}
-        return null
-    }
+    private fun SharedPreferences.posterQuality() = getString(PREF_POSTER_QUALITY, "large")
 
-    private fun extractMangaObjectFromNextJson(json: JSONObject, location: String): JSONObject? {
-        try {
-            val props = json.optJSONObject("props") ?: return null
-            val pageProps = props.optJSONObject("pageProps") ?: return null
-            val keys = listOf("manga", "title", "item", "data")
-            for (k in keys) {
-                val o = pageProps.optJSONObject(k) ?: continue
-                if (o.has("slug") || o.has("title")) return o
-            }
-            val shared = pageProps.optJSONObject("sharedData")
-            shared?.let {
-                shared.keys().forEach { key ->
-                    val o = shared.optJSONObject(key)
-                    if (o != null && o.has("title")) return o
-                }
-            }
-        } catch (_: Exception) {}
-        return null
-    }
-
-    private fun extractChaptersFromNextJson(json: JSONObject): List<JSONObject>? {
-        try {
-            val props = json.optJSONObject("props") ?: return null
-            val pageProps = props.optJSONObject("pageProps") ?: return null
-            val candidates = listOf("chapters", "chapterList", "volumes", "episodes")
-            for (c in candidates) {
-                val arr = pageProps.optJSONArray(c) ?: continue
-                val out = mutableListOf<JSONObject>()
-                for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { out.add(it) }
-                if (out.isNotEmpty()) return out
-            }
-        } catch (_: Exception) {}
-        return null
-    }
-
-    private fun extractImageListFromNextJson(json: JSONObject?): List<String>? {
-        if (json == null) return null
-        try {
-            val props = json.optJSONObject("props") ?: return null
-            val pageProps = props.optJSONObject("pageProps") ?: return null
-            val candidates = listOf("images", "pages", "imageList", "imagesArr")
-            for (c in candidates) {
-                val arr = pageProps.optJSONArray(c) ?: continue
-                val out = mutableListOf<String>()
-                for (i in 0 until arr.length()) {
-                    val v = arr.optString(i)
-                    if (v.isNotBlank()) out.add(v)
-                }
-                if (out.isNotEmpty()) return out
-            }
-            val shared = pageProps.optJSONObject("sharedData")
-            shared?.let {
-                shared.keys().forEach { k ->
-                    val o = shared.optJSONObject(k)
-                    o?.optJSONArray("images")?.let { arr ->
-                        val out = mutableListOf<String>()
-                        for (i in 0 until arr.length()) out.add(arr.optString(i))
-                        if (out.isNotEmpty()) return out
-                    }
-                }
-            }
-        } catch (_: Exception) {}
-        return null
-    }
-
-    private fun extractSlugFromDocLocation(location: String?): String {
-        if (location == null) return ""
-        val parts = location.split("/").filter { it.isNotBlank() }
-        val idx = parts.indexOf("title")
-        if (idx >= 0 && idx + 1 < parts.size) return parts[idx + 1]
-        return parts.lastOrNull() ?: ""
+    companion object {
+        private const val PREF_POSTER_QUALITY = "pref_poster_quality"
     }
 }
