@@ -50,10 +50,7 @@ class Aurora : HttpSource(), ConfigurableSource {
         val manga = res.result.items.map {
             it.toBasicSManga(preferences.posterQuality())
         }
-        return MangasPage(
-            manga,
-            res.result.pagination.page < res.result.pagination.lastPage
-        )
+        return MangasPage(manga, res.result.pagination.page < res.result.pagination.lastPage)
     }
 
     // Popular
