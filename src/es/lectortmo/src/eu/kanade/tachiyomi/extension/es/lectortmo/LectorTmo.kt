@@ -160,58 +160,43 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
     private fun searchMangaBySlugRequest(slug: String) = GET("$baseUrl/$PREFIX_LIBRARY/$slug", tmoHeaders)
 
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val url = "$baseUrl/library".toHttpUrl().newBuilder()
-        url.addQueryParameter("title", query)
-        if (getSFWModePref()) {
-            SFW_MODE_PREF_EXCLUDE_GENDERS.forEach { gender ->
-                url.addQueryParameter("exclude_genders[]", gender)
-            }
-            url.addQueryParameter("erotic", "false")
+    private fun applyNsfwFilters(url: HttpUrl.Builder) {
+        val hideAll = preferences.getBoolean(PREF_HIDE_NSFW, false)
+
+        // Si se activa “Ocultar NSFW” → bloquear todo NSFW
+        if (hideAll) {
+            url.addQueryParameter("exclude_genders[]", "16") // Boys Love
+            url.addQueryParameter("exclude_genders[]", "17") // Girls Love
+            url.addQueryParameter("exclude_genders[]", "12") // Hentai
+            return
         }
-        url.addQueryParameter("page", page.toString())
-        url.addQueryParameter("_pg", "1") // Extra Query to Prevent Scrapping aka without it = 403
-        filters.forEach { filter ->
-            when (filter) {
-                is Types -> {
-                    url.addQueryParameter("type", filter.toUriPart())
-                }
-                is Demography -> {
-                    url.addQueryParameter("demography", filter.toUriPart())
-                }
-                is SortBy -> {
-                    if (filter.state != null) {
-                        url.addQueryParameter("order_item", SORTABLES[filter.state!!.index].second)
-                        url.addQueryParameter(
-                            "order_dir",
-                            if (filter.state!!.ascending) { "asc" } else { "desc" },
-                        )
-                    }
-                }
-                is ContentTypeList -> {
-                    filter.state.forEach { content ->
-                        if (!getSFWModePref() || (getSFWModePref() && content.id != "erotic")) {
-                            when (content.state) {
-                                Filter.TriState.STATE_IGNORE -> url.addQueryParameter(content.id, "")
-                                Filter.TriState.STATE_INCLUDE -> url.addQueryParameter(content.id, "true")
-                                Filter.TriState.STATE_EXCLUDE -> url.addQueryParameter(content.id, "false")
-                            }
-                        }
-                    }
-                }
-                is GenreList -> {
-                    filter.state.forEach { genre ->
-                        when (genre.state) {
-                            Filter.TriState.STATE_INCLUDE -> url.addQueryParameter("genders[]", genre.id)
-                            Filter.TriState.STATE_EXCLUDE -> url.addQueryParameter("exclude_genders[]", genre.id)
-                        }
-                    }
-                }
-                else -> {}
-            }
+
+        // Subopciones individuales
+        if (preferences.getBoolean(PREF_HIDE_GL, false)) {
+            url.addQueryParameter("exclude_genders[]", "17")
         }
-        return GET(url.build(), tmoHeaders)
+        if (preferences.getBoolean(PREF_HIDE_BL, false)) {
+            url.addQueryParameter("exclude_genders[]", "16")
+        }
+        if (preferences.getBoolean(PREF_HIDE_HENTAI, false)) {
+            url.addQueryParameter("exclude_genders[]", "12")
+        }
     }
+
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        val url = HttpUrl.Builder()
+            .scheme("https")
+            .host(baseUrlHost)
+            .addPathSegment("library")
+            .addQueryParameter("page", page.toString())
+
+        if (query.isNotEmpty()) url.addQueryParameter("title", query)
+
+        applyNsfwFilters(url)
+
+        return GET(url.build(), headers)
+    }
+
     override fun searchMangaSelector() = popularMangaSelector()
 
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
@@ -579,30 +564,50 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     private fun getSaveLastCFUrlPref(): Boolean = preferences.getBoolean(SAVE_LAST_CF_URL_PREF, SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val sfwModePref = CheckBoxPreference(screen.context).apply {
-            key = SFW_MODE_PREF
-            title = SFW_MODE_PREF_TITLE
-            summary = SFW_MODE_PREF_SUMMARY
-            setDefaultValue(SFW_MODE_PREF_DEFAULT_VALUE)
-        }
+        val nsfwPref = SwitchPreferenceCompat(screen.context).apply {
+            key = PREF_HIDE_NSFW
+            title = "Ocultar contenido NSFW"
+            summary = "Al activarlo se ocultará todo el contenido NSFW y se deshabilitarán las opciones individuales"
+            setDefaultValue(false)
 
-        val scanlatorPref = CheckBoxPreference(screen.context).apply {
-            key = SCANLATOR_PREF
-            title = SCANLATOR_PREF_TITLE
-            summary = SCANLATOR_PREF_SUMMARY
-            setDefaultValue(SCANLATOR_PREF_DEFAULT_VALUE)
+            setOnPreferenceChangeListener { _, newValue ->
+                val enabled = !(newValue as Boolean)
+                // Cuando se activa NSFW general → desactivar subfiltros
+                screen.findPreference<Preference>(PREF_HIDE_GL)?.isEnabled = enabled
+                screen.findPreference<Preference>(PREF_HIDE_BL)?.isEnabled = enabled
+                screen.findPreference<Preference>(PREF_HIDE_HENTAI)?.isEnabled = enabled
+                true
+            }
         }
+        screen.addPreference(nsfwPref)
 
-        val saveLastCFUrlPreference = CheckBoxPreference(screen.context).apply {
-            key = SAVE_LAST_CF_URL_PREF
-            title = SAVE_LAST_CF_URL_PREF_TITLE
-            summary = SAVE_LAST_CF_URL_PREF_SUMMARY
-            setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
+        // Subfiltros individuales
+        val hideGL = SwitchPreferenceCompat(screen.context).apply {
+            key = PREF_HIDE_GL
+            title = "Ocultar Girls Love"
+            summary = "exclude_genders[]=17"
+            setDefaultValue(false)
+            isEnabled = !preferences.getBoolean(PREF_HIDE_NSFW, false)
         }
+        screen.addPreference(hideGL)
 
-        screen.addPreference(sfwModePref)
-        screen.addPreference(scanlatorPref)
-        screen.addPreference(saveLastCFUrlPreference)
+        val hideBL = SwitchPreferenceCompat(screen.context).apply {
+            key = PREF_HIDE_BL
+            title = "Ocultar Boys Love"
+            summary = "exclude_genders[]=16"
+            setDefaultValue(false)
+            isEnabled = !preferences.getBoolean(PREF_HIDE_NSFW, false)
+        }
+        screen.addPreference(hideBL)
+
+        val hideHentai = SwitchPreferenceCompat(screen.context).apply {
+            key = PREF_HIDE_HENTAI
+            title = "Ocultar Hentai"
+            summary = "exclude_genders[]=12"
+            setDefaultValue(false)
+            isEnabled = !preferences.getBoolean(PREF_HIDE_NSFW, false)
+        }
+        screen.addPreference(hideHentai)
     }
 
     companion object {
@@ -619,6 +624,11 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         private const val SFW_MODE_PREF_SUMMARY = "Ocultar el contenido erótico (puede que aún activandolo se sigan mostrando portadas o series NSFW). Ten en cuenta que al activarlo se ignoran filtros al explorar y buscar.\nLos filtros ignorados son: Filtrar por tipo de contenido (Erotico) y el Filtrar por generos: Ecchi, Boys Love, Girls Love, Harem y Trap."
         private const val SFW_MODE_PREF_DEFAULT_VALUE = false
         private val SFW_MODE_PREF_EXCLUDE_GENDERS = listOf("6", "17", "18", "19")
+
+        private const val PREF_HIDE_NSFW = "pref_hide_nsfw"
+        private const val PREF_HIDE_GL = "pref_hide_gl"
+        private const val PREF_HIDE_BL = "pref_hide_bl"
+        private const val PREF_HIDE_HENTAI = "pref_hide_hentai"
 
         private const val SAVE_LAST_CF_URL_PREF = "saveLastCFUrlPreference"
         private const val SAVE_LAST_CF_URL_PREF_TITLE = "Guardar la última URL con error de Cloudflare"
