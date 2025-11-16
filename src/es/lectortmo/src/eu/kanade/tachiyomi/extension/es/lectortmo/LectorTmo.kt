@@ -98,7 +98,26 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     }
 
     // Marks erotic content as false and excludes: Ecchi(6), GirlsLove(17), BoysLove(18), Harem(19), Trap(94) genders
-    private fun getSFWUrlPart(): String = if (getSFWModePref()) "&exclude_genders%5B%5D=6&exclude_genders%5B%5D=17&exclude_genders%5B%5D=18&exclude_genders%5B%5D=19&exclude_genders%5B%5D=94&erotic=false" else ""
+    private fun getSfwUrlPart(): String {
+        val hidden = mutableListOf<String>()
+
+        if (getSfwGeneral()) {
+            // Oculta TODO el contenido NSFW
+            hidden += listOf("6", "17", "18", "19", "94")
+        } else {
+            if (getNsfwEcchi()) hidden += "6"
+            if (getNsfwGirlsLove()) hidden += "17"
+            if (getNsfwBoysLove()) hidden += "18"
+            if (getNsfwHarem()) hidden += "19"
+            if (getNsfwTrap()) hidden += "94"
+        }
+
+        if (hidden.isEmpty()) return ""
+
+        val params = hidden.joinToString("") { "&exclude_genders[]=$it" }
+
+        return "$params&erotic=false"
+    }
 
     override fun fetchPopularManga(page: Int): Observable<MangasPage> {
         return safeClient.newCall(popularMangaRequest(page))
@@ -108,7 +127,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             }
     }
 
-    override fun popularMangaRequest(page: Int) = GET("$baseUrl/library?order_item=likes_count&order_dir=desc&filter_by=title${getSFWUrlPart()}&_pg=1&page=$page", tmoHeaders)
+    override fun popularMangaRequest(page: Int) = GET("$baseUrl/library?order_item=likes_count&order_dir=desc&filter_by=title${getSfwUrlPart()}&_pg=1&page=$page", tmoHeaders)
 
     override fun popularMangaNextPageSelector() = "a[rel='next']"
 
@@ -130,7 +149,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             }
     }
 
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/library?order_item=creation&order_dir=desc&filter_by=title${getSFWUrlPart()}&_pg=1&page=$page", tmoHeaders)
+    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/library?order_item=creation&order_dir=desc&filter_by=title${getSfwUrlPart()}&_pg=1&page=$page", tmoHeaders)
 
     override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
 
@@ -604,7 +623,75 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         screen.addPreference(sfwModePref)
         screen.addPreference(scanlatorPref)
         screen.addPreference(saveLastCFUrlPreference)
+
+        // --- Opción general NSFW ---
+        val nsfwGeneralPref = CheckBoxPreference(screen.context).apply {
+            key = SFW_GENERAL
+            title = "Ocultar todo el contenido NSFW"
+            summary = "Bloquea automáticamente Ecchi, Girls Love, Boys Love, Harem y Trap"
+            setDefaultValue(false)
+        }
+        screen.addPreference(nsfwGeneralPref)
+
+        // --- Subopciones ---
+        screen.addPreference(
+            CheckBoxPreference(screen.context).apply {
+                key = NSFW_ECCHI
+                title = "Ocultar Ecchi"
+                setDefaultValue(false)
+            }
+        )
+
+        screen.addPreference(
+            CheckBoxPreference(screen.context).apply {
+                key = NSFW_GIRLS_LOVE
+                title = "Ocultar Girls Love"
+                setDefaultValue(false)
+            }
+        )
+
+        screen.addPreference(
+            CheckBoxPreference(screen.context).apply {
+                key = NSFW_BOYS_LOVE
+                title = "Ocultar Boys Love"
+                setDefaultValue(false)
+            }
+        )
+
+        screen.addPreference(
+            CheckBoxPreference(screen.context).apply {
+                key = NSFW_HAREM
+                title = "Ocultar Harem"
+                setDefaultValue(false)
+            }
+        )
+
+        screen.addPreference(
+            CheckBoxPreference(screen.context).apply {
+                key = NSFW_TRAP
+                title = "Ocultar Trap"
+                setDefaultValue(false)
+            }
+        )
     }
+
+    private fun getSfwGeneral(): Boolean =
+        preferences.getBoolean(SFW_GENERAL, false)
+
+    private fun getNsfwEcchi(): Boolean =
+        preferences.getBoolean(NSFW_ECCHI, false)
+
+    private fun getNsfwGirlsLove(): Boolean =
+        preferences.getBoolean(NSFW_GIRLS_LOVE, false)
+
+    private fun getNsfwBoysLove(): Boolean =
+        preferences.getBoolean(NSFW_BOYS_LOVE, false)
+
+    private fun getNsfwHarem(): Boolean =
+        preferences.getBoolean(NSFW_HAREM, false)
+
+    private fun getNsfwTrap(): Boolean =
+        preferences.getBoolean(NSFW_TRAP, false)
 
     companion object {
         val DIRPATH_REGEX = """var\s+dirPath\s*=\s*'(.*?)'\s*;""".toRegex()
@@ -618,6 +705,16 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         private const val SFW_MODE_PREF = "SFWModePref"
         private const val SFW_MODE_PREF_TITLE = "Ocultar contenido NSFW"
         private const val SFW_MODE_PREF_SUMMARY = "Ocultar el contenido erótico (puede que aún activandolo se sigan mostrando portadas o series NSFW). Ten en cuenta que al activarlo se ignoran filtros al explorar y buscar.\nLos filtros ignorados son: Filtrar por tipo de contenido (Erotico) y el Filtrar por generos: Ecchi, Boys Love, Girls Love, Harem y Trap."
+
+        // --- NSFW general + subopciones ---
+        private const val SFW_GENERAL = "pref_sfw_general"
+
+        private const val NSFW_ECCHI = "pref_nsfw_ecchi"
+        private const val NSFW_GIRLS_LOVE = "pref_nsfw_girls_love"
+        private const val NSFW_BOYS_LOVE = "pref_nsfw_boys_love"
+        private const val NSFW_HAREM = "pref_nsfw_harem"
+        private const val NSFW_TRAP = "pref_nsfw_trap"
+
         private const val SFW_MODE_PREF_DEFAULT_VALUE = false
         private val SFW_MODE_PREF_EXCLUDE_GENDERS = listOf("6", "17", "18", "19")
 
