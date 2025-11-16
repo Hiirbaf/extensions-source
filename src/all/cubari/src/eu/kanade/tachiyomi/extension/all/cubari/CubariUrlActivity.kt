@@ -65,7 +65,9 @@ class CubariUrlActivity : Activity() {
         return if (pathSegments.size >= 2) {
             val id = pathSegments[1]
             "${Cubari.PROXY_PREFIX}$source/$id"
-        } else null
+        } else {
+            null
+        }
     }
 
     private fun fromCubari(pathSegments: List<String>): String? {
@@ -73,6 +75,8 @@ class CubariUrlActivity : Activity() {
             val source = pathSegments[1]
             val slug = pathSegments[2]
             "${Cubari.PROXY_PREFIX}$source/$slug"
-        } else null
+        } else {
+            null
+        }
     }
 }
