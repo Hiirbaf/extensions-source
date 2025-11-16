@@ -55,6 +55,9 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         .set("Referer", "$baseUrl/")
         .build()
 
+    private val baseUrlHost: String
+        get() = baseUrl.removePrefix("https://").removePrefix("http://")
+
     private fun OkHttpClient.Builder.ignoreAllSSLErrors(): OkHttpClient.Builder {
         val naiveTrustManager = @SuppressLint("CustomX509TrustManager")
         object : X509TrustManager {
