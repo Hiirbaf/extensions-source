@@ -5,65 +5,74 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import kotlin.system.exitProcess
 
 class CubariUrlActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val host = intent?.data?.host
-        val pathSegments = intent?.data?.pathSegments
 
-        if (host != null && pathSegments != null) {
-            val query = with(host) {
-                when {
-                    equals("m.imgur.com") || equals("imgur.com") -> fromSource("imgur", pathSegments)
-                    equals("m.reddit.com") || equals("reddit.com") || equals("www.reddit.com") -> fromSource("reddit", pathSegments)
-                    equals("imgchest.com") -> fromSource("imgchest", pathSegments)
-                    equals("catbox.moe") || equals("www.catbox.moe") -> fromSource("catbox", pathSegments)
-                    else -> fromCubari(pathSegments)
-                }
-            }
+        val uri = intent?.data
+        val host = uri?.host
+        val pathSegments = uri?.pathSegments
 
-            if (query == null) {
-                Log.e("CubariUrlActivity", "Unable to parse URI from intent $intent")
-                finish()
-                exitProcess(1)
-            }
-
-            val mainIntent = Intent().apply {
-                action = "eu.kanade.tachiyomi.SEARCH"
-                putExtra("query", query)
-                putExtra("filter", packageName)
-            }
-
-            try {
-                startActivity(mainIntent)
-            } catch (e: ActivityNotFoundException) {
-                Log.e("CubariUrlActivity", e.toString())
-            }
+        if (host == null || pathSegments == null) {
+            Log.e("CubariUrlActivity", "Invalid URI: $intent")
+            finish()
+            return
         }
 
+        // Convert URL to Cubari-compatible query
+        val query = when {
+            host.equals("m.imgur.com") || host.equals("imgur.com") ->
+                fromSource("imgur", pathSegments)
+
+            host.equals("m.reddit.com") || host.equals("reddit.com") || host.equals("www.reddit.com") ->
+                fromSource("reddit", pathSegments)
+
+            host.equals("imgchest.com") ->
+                fromSource("imgchest", pathSegments)
+
+            host.equals("catbox.moe") || host.equals("www.catbox.moe") ->
+                fromSource("catbox", pathSegments)
+
+            else ->
+                fromCubari(pathSegments)
+        }
+
+        if (query == null) {
+            Log.e("CubariUrlActivity", "Unable to parse URI: $uri")
+            finish()
+            return
+        }
+
+        val mainIntent = Intent().apply {
+            action = "eu.kanade.tachiyomi.SEARCH"
+            putExtra("query", query)
+            putExtra("filter", packageName)
+        }
+
+        try {
+            startActivity(mainIntent)
+        } catch (e: ActivityNotFoundException) {
+            Log.e("CubariUrlActivity", "Unable to start SEARCH", e)
+        }
+
+        // NO exitProcess()
         finish()
-        exitProcess(0)
     }
 
     private fun fromSource(source: String, pathSegments: List<String>): String? {
-        if (pathSegments.size >= 2) {
+        return if (pathSegments.size >= 2) {
             val id = pathSegments[1]
-
-            return "${Cubari.PROXY_PREFIX}$source/$id"
-        }
-        return null
+            "${Cubari.PROXY_PREFIX}$source/$id"
+        } else null
     }
 
-    private fun fromCubari(pathSegments: MutableList<String>): String? {
+    private fun fromCubari(pathSegments: List<String>): String? {
         return if (pathSegments.size >= 3) {
             val source = pathSegments[1]
             val slug = pathSegments[2]
             "${Cubari.PROXY_PREFIX}$source/$slug"
-        } else {
-            null
-        }
+        } else null
     }
 }
