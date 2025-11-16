@@ -182,11 +182,18 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/library".toHttpUrl().newBuilder()
         url.addQueryParameter("title", query)
-        if (getSFWModePref()) {
-            SFW_MODE_PREF_EXCLUDE_GENDERS.forEach { gender ->
-                url.addQueryParameter("exclude_genders[]", gender)
-            }
-            url.addQueryParameter("erotic", "false")
+        // Nuevo sistema NSFW
+        val nsfwPart = getSfwUrlPart()
+        if (nsfwPart.isNotEmpty()) {
+            // Dividir los parámetros para agregarlos correctamente al builder
+            nsfwPart.split("&")
+                .filter { it.isNotBlank() }
+                .forEach { param ->
+                    val (key, value) = param.split("=").let {
+                        it.first().removePrefix("?") to it.getOrElse(1) { "" }
+                    }
+                    url.addQueryParameter(key, value)
+                }
         }
         url.addQueryParameter("page", page.toString())
         url.addQueryParameter("_pg", "1") // Extra Query to Prevent Scrapping aka without it = 403
@@ -209,12 +216,10 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
                 }
                 is ContentTypeList -> {
                     filter.state.forEach { content ->
-                        if (!getSFWModePref() || (getSFWModePref() && content.id != "erotic")) {
-                            when (content.state) {
-                                Filter.TriState.STATE_IGNORE -> url.addQueryParameter(content.id, "")
-                                Filter.TriState.STATE_INCLUDE -> url.addQueryParameter(content.id, "true")
-                                Filter.TriState.STATE_EXCLUDE -> url.addQueryParameter(content.id, "false")
-                            }
+                        when (content.state) {
+                            Filter.TriState.STATE_IGNORE -> url.addQueryParameter(content.id, "")
+                            Filter.TriState.STATE_INCLUDE -> url.addQueryParameter(content.id, "true")
+                            Filter.TriState.STATE_EXCLUDE -> url.addQueryParameter(content.id, "false")
                         }
                     }
                 }
