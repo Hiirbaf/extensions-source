@@ -599,18 +599,9 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
     private fun getScanlatorPref(): Boolean = preferences.getBoolean(SCANLATOR_PREF, SCANLATOR_PREF_DEFAULT_VALUE)
 
-    private fun getSFWModePref(): Boolean = preferences.getBoolean(SFW_MODE_PREF, SFW_MODE_PREF_DEFAULT_VALUE)
-
     private fun getSaveLastCFUrlPref(): Boolean = preferences.getBoolean(SAVE_LAST_CF_URL_PREF, SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val sfwModePref = CheckBoxPreference(screen.context).apply {
-            key = SFW_MODE_PREF
-            title = SFW_MODE_PREF_TITLE
-            summary = SFW_MODE_PREF_SUMMARY
-            setDefaultValue(SFW_MODE_PREF_DEFAULT_VALUE)
-        }
-
         val scanlatorPref = CheckBoxPreference(screen.context).apply {
             key = SCANLATOR_PREF
             title = SCANLATOR_PREF_TITLE
@@ -625,7 +616,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
         }
 
-        screen.addPreference(sfwModePref)
         screen.addPreference(scanlatorPref)
         screen.addPreference(saveLastCFUrlPreference)
 
@@ -707,10 +697,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         private const val SCANLATOR_PREF_SUMMARY = "Se mostraran capítulos repetidos pero con diferentes Scanlators"
         private const val SCANLATOR_PREF_DEFAULT_VALUE = true
 
-        private const val SFW_MODE_PREF = "SFWModePref"
-        private const val SFW_MODE_PREF_TITLE = "Ocultar contenido NSFW"
-        private const val SFW_MODE_PREF_SUMMARY = "Ocultar el contenido erótico (puede que aún activandolo se sigan mostrando portadas o series NSFW). Ten en cuenta que al activarlo se ignoran filtros al explorar y buscar.\nLos filtros ignorados son: Filtrar por tipo de contenido (Erotico) y el Filtrar por generos: Ecchi, Boys Love, Girls Love, Harem y Trap."
-
         // --- NSFW general + subopciones ---
         private const val SFW_GENERAL = "pref_sfw_general"
 
@@ -719,9 +705,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         private const val NSFW_BOYS_LOVE = "pref_nsfw_boys_love"
         private const val NSFW_HAREM = "pref_nsfw_harem"
         private const val NSFW_TRAP = "pref_nsfw_trap"
-
-        private const val SFW_MODE_PREF_DEFAULT_VALUE = false
-        private val SFW_MODE_PREF_EXCLUDE_GENDERS = listOf("6", "17", "18", "19")
 
         private const val SAVE_LAST_CF_URL_PREF = "saveLastCFUrlPreference"
         private const val SAVE_LAST_CF_URL_PREF_TITLE = "Guardar la última URL con error de Cloudflare"
