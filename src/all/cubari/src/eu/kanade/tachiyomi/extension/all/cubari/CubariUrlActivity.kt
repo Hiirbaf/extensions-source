@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.extension.all.cubari
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 
@@ -11,72 +12,49 @@ class CubariUrlActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val uri = intent?.data
-        val host = uri?.host
-        val pathSegments = uri?.pathSegments
-
-        if (host == null || pathSegments == null) {
-            Log.e("CubariUrlActivity", "Invalid URI: $intent")
+        val dataUri = intent?.data
+        if (dataUri == null) {
             finish()
             return
         }
 
-        // Convert URL to Cubari-compatible query
-        val query = when {
-            host.equals("m.imgur.com") || host.equals("imgur.com") ->
-                fromSource("imgur", pathSegments)
+        val rawUrl = dataUri.toString()
 
-            host.equals("m.reddit.com") || host.equals("reddit.com") || host.equals("www.reddit.com") ->
-                fromSource("reddit", pathSegments)
-
-            host.equals("imgchest.com") ->
-                fromSource("imgchest", pathSegments)
-
-            host.equals("catbox.moe") || host.equals("www.catbox.moe") ->
-                fromSource("catbox", pathSegments)
-
-            else ->
-                fromCubari(pathSegments)
-        }
-
-        if (query == null) {
-            Log.e("CubariUrlActivity", "Unable to parse URI: $uri")
+        // Convertimos el enlace a cubari:<source>/<slug>
+        val proxyQuery = try {
+            convertToCubariPrefix(rawUrl)
+        } catch (e: Exception) {
+            Log.e("CubariUrlActivity", "Invalid Cubari URL", e)
             finish()
             return
         }
 
-        val mainIntent = Intent().apply {
+        val tachiyomiIntent = Intent().apply {
             action = "eu.kanade.tachiyomi.SEARCH"
-            putExtra("query", query)
+            putExtra("query", proxyQuery)
             putExtra("filter", packageName)
         }
 
         try {
-            startActivity(mainIntent)
+            startActivity(tachiyomiIntent)
         } catch (e: ActivityNotFoundException) {
-            Log.e("CubariUrlActivity", "Unable to start SEARCH", e)
+            Log.e("CubariUrlActivity", "Unable to find Tachiyomi activity", e)
         }
 
-        // NO exitProcess()
         finish()
     }
 
-    private fun fromSource(source: String, pathSegments: List<String>): String? {
-        return if (pathSegments.size >= 2) {
-            val id = pathSegments[1]
-            "${Cubari.PROXY_PREFIX}$source/$id"
-        } else {
-            null
+    /**
+     * Convierte enlaces directos a Cubari o enlaces externos
+     * a un prefijo estándar: cubari:<source>/<slug>
+     */
+    private fun convertToCubariPrefix(url: String): String {
+        val (source, slug) = CubariHybrid("all").run {
+            val method = this::class.java.getDeclaredMethod("safeDeepLink", String::class.java)
+            method.isAccessible = true
+            method.invoke(this, url) as Pair<String, String>
         }
-    }
 
-    private fun fromCubari(pathSegments: List<String>): String? {
-        return if (pathSegments.size >= 3) {
-            val source = pathSegments[1]
-            val slug = pathSegments[2]
-            "${Cubari.PROXY_PREFIX}$source/$slug"
-        } else {
-            null
-        }
+        return "${CubariHybrid.PROXY_PREFIX}$source/$slug"
     }
 }
