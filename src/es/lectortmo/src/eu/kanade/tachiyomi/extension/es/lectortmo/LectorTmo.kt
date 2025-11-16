@@ -639,7 +639,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
                 key = NSFW_ECCHI
                 title = "Ocultar Ecchi"
                 setDefaultValue(false)
-            }
+            },
         )
 
         screen.addPreference(
@@ -647,7 +647,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
                 key = NSFW_GIRLS_LOVE
                 title = "Ocultar Girls Love"
                 setDefaultValue(false)
-            }
+            },
         )
 
         screen.addPreference(
@@ -655,7 +655,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
                 key = NSFW_BOYS_LOVE
                 title = "Ocultar Boys Love"
                 setDefaultValue(false)
-            }
+            },
         )
 
         screen.addPreference(
@@ -663,7 +663,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
                 key = NSFW_HAREM
                 title = "Ocultar Harem"
                 setDefaultValue(false)
-            }
+            },
         )
 
         screen.addPreference(
@@ -671,7 +671,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
                 key = NSFW_TRAP
                 title = "Ocultar Trap"
                 setDefaultValue(false)
-            }
+            },
         )
     }
 
