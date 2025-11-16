@@ -426,6 +426,7 @@ class Cubari(override val lang: String) : HttpSource() {
     }
 
     companion object {
+        const val PROXY_PREFIX = "/read/"
         const val AUTHOR_FALLBACK = "Unknown"
         const val ARTIST_FALLBACK = "Unknown"
         const val DESCRIPTION_FALLBACK = "No description."
