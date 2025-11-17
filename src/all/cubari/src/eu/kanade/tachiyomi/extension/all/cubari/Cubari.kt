@@ -41,7 +41,7 @@ class Cubari(override val lang: String) : HttpSource() {
                 .build()
             chain.proceed(
                 request.newBuilder().headers(headers).build()
-            ),
+            )
         }
         .build()
 
@@ -50,7 +50,7 @@ class Cubari(override val lang: String) : HttpSource() {
             "User-Agent",
             "(Android ${Build.VERSION.RELEASE}; " +
                 "${Build.MANUFACTURER} ${Build.MODEL}) Tachiyomi/${AppInfo.getVersionName()} ${Build.ID} Hybrid"
-        ),
+        )
         .build()
 
     override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/", cubariHeaders)
