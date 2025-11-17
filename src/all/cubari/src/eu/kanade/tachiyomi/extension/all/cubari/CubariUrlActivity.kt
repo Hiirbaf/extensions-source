@@ -12,49 +12,49 @@ class CubariUrlActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val dataUri = intent?.data
-        if (dataUri == null) {
+        val data = intent?.data
+        if (data == null) {
             finish()
             return
         }
 
-        val rawUrl = dataUri.toString()
+        val rawUrl = data.toString()
 
-        // Convertimos el enlace a cubari:<source>/<slug>
+        // Convertimos a cubari:source/slug (lo que usa tu Hiirbaf)
         val proxyQuery = try {
-            convertToCubariPrefix(rawUrl)
+            convertToCubariProxy(rawUrl)
         } catch (e: Exception) {
-            Log.e("CubariUrlActivity", "Invalid Cubari URL", e)
+            Log.e("CubariUrlActivity", "Invalid Cubari link: $rawUrl", e)
             finish()
             return
         }
 
-        val tachiyomiIntent = Intent().apply {
-            action = "eu.kanade.tachiyomi.SEARCH"
+        // Intent estándar de Tachiyomi/Yokai para búsquedas directas
+        val searchIntent = Intent("eu.kanade.tachiyomi.SEARCH").apply {
             putExtra("query", proxyQuery)
-            putExtra("filter", packageName)
+            putExtra("filter", packageName) // para filtrar solo tu extensión
         }
 
         try {
-            startActivity(tachiyomiIntent)
+            startActivity(searchIntent)
         } catch (e: ActivityNotFoundException) {
-            Log.e("CubariUrlActivity", "Unable to find Tachiyomi activity", e)
+            Log.e("CubariUrlActivity", "Tachiyomi/Yokai not found", e)
         }
 
         finish()
     }
 
     /**
-     * Convierte enlaces directos a Cubari o enlaces externos
-     * a un prefijo estándar: cubari:<source>/<slug>
+     * Convierte cualquier URL válida en el formato:
+     *      cubari:<source>/<slug>
      */
-    private fun convertToCubariPrefix(url: String): String {
-        val (source, slug) = CubariHybrid("all").run {
-            val method = this::class.java.getDeclaredMethod("safeDeepLink", String::class.java)
-            method.isAccessible = true
-            method.invoke(this, url) as Pair<String, String>
-        }
+    private fun convertToCubariProxy(url: String): String {
+        // Llamamos al método interno deepLinkHandler() del Hybrid
+        val hybrid = CubariHybrid("all")
+        val method = hybrid::class.java.getDeclaredMethod("safeDeepLink", String::class.java)
+        method.isAccessible = true
 
-        return "${CubariHybrid.PROXY_PREFIX}$source/$slug"
+        val (source, slug) = method.invoke(hybrid, url) as Pair<String, String>
+        return "cubari:$source/$slug"
     }
 }
