@@ -41,7 +41,7 @@ class Cubari(override val lang: String) : HttpSource() {
                 .build()
             chain.proceed(
                 request.newBuilder().headers(headers).build()
-            )
+            ),
         }
         .build()
 
@@ -50,7 +50,7 @@ class Cubari(override val lang: String) : HttpSource() {
             "User-Agent",
             "(Android ${Build.VERSION.RELEASE}; " +
                 "${Build.MANUFACTURER} ${Build.MODEL}) Tachiyomi/${AppInfo.getVersionName()} ${Build.ID} Hybrid"
-        )
+        ),
         .build()
 
     override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/", cubariHeaders)
@@ -123,8 +123,8 @@ class Cubari(override val lang: String) : HttpSource() {
             .map {
                 if (chapter.url.contains("/chapter/"))
                     directPageListParse(it)
-                else
-                    seriesJsonPageListParse(it, chapter)
+            } else {
+                seriesJsonPageListParse(it, chapter)
             }
 
     override fun pageListRequest(chapter: SChapter): Request {
@@ -142,7 +142,7 @@ class Cubari(override val lang: String) : HttpSource() {
             val src =
                 if (el is JsonObject)
                     el.jsonObject["src"]!!.jsonPrimitive.content
-                else
+        } else {
                     el.jsonPrimitive.content
             Page(i, "", src)
         }
@@ -171,7 +171,7 @@ class Cubari(override val lang: String) : HttpSource() {
             val src =
                 if (el is JsonObject)
                     el.jsonObject["src"]!!.jsonPrimitive.content
-                else
+        } else {
                     el.jsonPrimitive.content
             Page(i, "", src)
         }
@@ -333,7 +333,7 @@ class Cubari(override val lang: String) : HttpSource() {
                     url =
                         if (cgroups[groupId] is JsonArray)
                             "${manga.url}/$num/$groupId"
-                        else
+                } else {
                             cgroups[groupId]!!.jsonPrimitive.content
                 }
             }
