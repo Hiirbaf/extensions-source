@@ -21,7 +21,7 @@ class CubariUrlActivity : Activity() {
 
         val mainIntent = Intent().apply {
             action = "eu.kanade.tachiyomi.SEARCH"
-            putExtra("query", decodedUrl)   // <-- usamos la URL decodificada
+            putExtra("query", decodedUrl)  // <-- usamos la URL decodificada
             putExtra("filter", packageName)
         }
 
