@@ -167,11 +167,19 @@ class MyComicList : HttpSource() {
 
     // --- FILTERS ---
 
-    override fun getFilterList(): FilterList =
-        FilterList(
-            TagFilter(getTags()),
-            StateFilter(),
-        )
+    override fun getFilterList(): FilterList {
+        val tags = getTags()
+
+        val filters = mutableListOf<Filter<*>>()
+
+        if (tags.isNotEmpty()) {
+            filters += TagFilter(tags)
+    }
+
+    filters += StateFilter()
+
+    return FilterList(filters)
+    }
 
     private fun getTags(): List<Tag> {
         return try {
