@@ -151,7 +151,7 @@ class IkigaiMangas : HttpSource(), ConfigurableSource {
 
         val apiUrl = "$apiBaseUrl/api/swf/series".toHttpUrl().newBuilder()
 
-        if (query.isNotEmpty()) apiUrl.addQueryParameter("search", query)
+        apiUrl.addQueryParameter("search", query.ifBlank { " " })
 
         apiUrl.addQueryParameter("page", page.toString())
         apiUrl.addQueryParameter("type", "comic")
