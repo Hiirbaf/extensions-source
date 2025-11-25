@@ -22,6 +22,18 @@ class MyComicList : HttpSource() {
 
     // --- utilities ---
 
+    private fun toRelative(url: String): String {
+        val fixed = url
+            .replace("https//", "https://")
+            .replace("http//", "http://")
+
+        return when {
+            fixed.startsWith("http") ->
+                fixed.substringAfter(baseUrl)
+            else -> fixed
+        }
+    }
+
     private fun fixUrl(url: String): String {
         val fixed = url
             .replaceFirst("https//", "https://")
@@ -71,7 +83,7 @@ class MyComicList : HttpSource() {
             val img = div.selectFirst("img.lazyload")?.attr("data-src")
 
             SManga.create().apply {
-                this.url = url
+                this.url = toRelative(url)
                 this.title = title
                 this.thumbnail_url = img
             }
@@ -127,7 +139,7 @@ class MyComicList : HttpSource() {
             val name = a.text()
 
             SChapter.create().apply {
-                this.url = url
+                this.url = toRelative(url)
                 this.name = name
                 chapter_number = name.substringAfter('#').toFloatOrNull() ?: (i + 1f)
             }
@@ -137,7 +149,7 @@ class MyComicList : HttpSource() {
     // --- PAGES ---
 
     override fun pageListRequest(chapter: SChapter): Request =
-        GET(chapter.url + "/all", headers)
+        GET(baseUrl + chapter.url + "/all", headers)
 
     override fun pageListParse(response: Response): List<Page> {
         val doc = response.asJsoup()
