@@ -83,7 +83,7 @@ class MyComicList : HttpSource() {
             url = url.replaceFirst("https//", "https://")
         } else {
             if (url.startsWith("http//")) {
-            url = url.replaceFirst("http//", "http://")
+                url = url.replaceFirst("http//", "http://")
             }
         }
 
