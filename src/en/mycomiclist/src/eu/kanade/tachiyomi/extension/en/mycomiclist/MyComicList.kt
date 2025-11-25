@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.extension.en.mycomiclist
 
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.asJsoup
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -10,8 +9,8 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Request
-import okhttp3.Response
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.Document
 
 class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
@@ -101,22 +100,21 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // Manga Details
     // -------------------------------------------------------------
 
-    override fun mangaDetailsParse(response: Response): SManga {
-        val doc = response.asJsoup()
+    override fun mangaDetailsParse(document: Document): SManga {
         val manga = SManga.create()
 
-        manga.title = doc.selectFirst("h1.manga-title")?.text().orEmpty()
-        manga.thumbnail_url = doc.selectFirst("div.manga-cover img")?.attr("src")
-        manga.description = doc.select("div.manga-right > p").firstOrNull()?.text()
+        manga.title = document.selectFirst("h1.manga-title")?.text().orEmpty()
+        manga.thumbnail_url = document.selectFirst("div.manga-cover img")?.attr("src")
+        manga.description = document.select("div.manga-right > p").firstOrNull()?.text()
 
-        val author = doc.selectFirst("td:contains(Author:) + td")?.text()
+        val author = document.selectFirst("td:contains(Author:) + td")?.text()
         manga.author = author
         manga.artist = author
 
-        val genres = doc.select("td:contains(Genres:) + td a").map { it.text() }
+        val genres = document.select("td:contains(Genres:) + td a").map { it.text() }
         manga.genre = genres.joinToString(", ")
 
-        val statusText = doc.selectFirst("td:contains(Status:) + td")?.text()?.lowercase()
+        val statusText = document.selectFirst("td:contains(Status:) + td")?.text()?.lowercase()
         manga.status = when {
             statusText?.contains("ongoing") == true -> SManga.ONGOING
             statusText?.contains("complete") == true -> SManga.COMPLETED
@@ -145,16 +143,15 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // Page List
     // -------------------------------------------------------------
 
-    override fun pageListParse(response: Response): List<Page> {
-        val doc = response.asJsoup()
-        return doc.select("img.chapter_img.lazyload").mapIndexedNotNull { index: Int, img: Element ->
+    override fun pageListParse(document: Document): List<Page> {
+        return document.select("img.chapter_img.lazyload").mapIndexedNotNull { index: Int, img: Element ->
             img.attr("data-src").takeIf { it.isNotBlank() }?.let { url ->
                 Page(index, "", url)
             }
         }
     }
 
-    override fun imageUrlParse(response: Response): String =
+    override fun imageUrlParse(document: Document): String =
         throw UnsupportedOperationException("Not used")
 
     // -------------------------------------------------------------
@@ -169,7 +166,7 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     private fun getTags(): List<Tag> {
         return try {
-            val doc = client.newCall(GET(baseUrl)).execute().asJsoup()
+            val doc = client.newCall(GET(baseUrl)).execute().parse() // parse() devuelve Document
             doc.select("a.genre-name").map { a: Element ->
                 Tag(
                     key = a.attr("href").substringAfterLast('/').substringBefore("-comic"),
