@@ -148,7 +148,7 @@ class MyComicList : HttpSource() {
     override fun getFilterList(): FilterList =
         FilterList(
             TagFilter(getTags()),
-            StateFilter()
+            StateFilter(),
         )
 
     // Filtro de tags
@@ -158,7 +158,7 @@ class MyComicList : HttpSource() {
             doc.select("div.cr-anime-box.genre-box a.genre-name").map { a ->
                 Tag(
                     key = a.attr("href").substringAfterLast('/').substringBefore("-comic"),
-                    title = a.text()
+                    title = a.text(),
                 )
             }
         } catch (e: Exception) {
