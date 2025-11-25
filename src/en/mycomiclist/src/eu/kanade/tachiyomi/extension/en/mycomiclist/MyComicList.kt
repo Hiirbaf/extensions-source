@@ -58,7 +58,7 @@ class MyComicList : HttpSource() {
             val img = div.selectFirst("img.lazyload")?.attr("data-src")
 
             SManga.create().apply {
-                this.url = url
+                this.url = fixUrl(url)
                 this.title = title
                 this.thumbnail_url = img
                 this.author = null
@@ -68,6 +68,27 @@ class MyComicList : HttpSource() {
 
         val hasNext = doc.select("a[rel=next]").isNotEmpty()
         return MangasPage(mangas, hasNext)
+    }
+
+    private fun fixUrl(href: String): String {
+        var url = href.trim()
+
+        // Si ya empieza con http correctamente → lo devolvemos
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url
+        }
+
+        // Si viene sin ":" → lo arreglamos
+        if (url.startsWith("https//")) {
+            url = url.replaceFirst("https//", "https://")
+        } else {
+            if (url.startsWith("http//")) {
+            url = url.replaceFirst("http//", "http://")
+            }
+        }
+
+        // Si sigue sin ser absoluta → la unimos al baseUrl
+        return if (url.startsWith("http")) url else baseUrl + url
     }
 
     // ----- DETALLES -----
@@ -115,7 +136,7 @@ class MyComicList : HttpSource() {
             val name = a.text()
 
             SChapter.create().apply {
-                this.url = url
+                this.url = fixUrl(url)
                 this.name = name
                 chapter_number = name.substringAfter('#').toFloatOrNull() ?: (i + 1f)
             }
