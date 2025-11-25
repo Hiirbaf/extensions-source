@@ -132,9 +132,11 @@ class MyComicList : HttpSource() {
 
         return doc.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
             val src = img.attr("data-src")
-            if (src.isNullOrBlank()) null
-        } else {
-            Page(index, "", src)
+            if (src.isNullOrBlank()) {
+                null
+            } else {
+                Page(index, "", src)
+            }
         }
     }
 
