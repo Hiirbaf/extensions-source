@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.en.mycomiclist
 
+import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
@@ -9,7 +10,6 @@ import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
-import eu.kanade.tachiyomi.network.asObservableSuccess
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -203,7 +203,7 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     class GenreFilter(private val tags: List<Tag>) :
         Filter.Select<String>(
             "Genre",
-            tags.map { it.title }.toTypedArray()
+            tags.map { it.title }.toTypedArray(),
         ) {
         val selectedTag: Tag?
             get() = tags.getOrNull(state)
@@ -212,6 +212,6 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     class StateFilter :
         Filter.Select<String>(
             "Status",
-            arrayOf("Any", "Ongoing", "Finished")
+            arrayOf("Any", "Ongoing", "Finished"),
         )
 }
