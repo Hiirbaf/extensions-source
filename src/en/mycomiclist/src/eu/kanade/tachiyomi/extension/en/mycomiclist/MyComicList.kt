@@ -1,190 +1,191 @@
 package eu.kanade.tachiyomi.extension.en.mycomiclist
 
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.source.ConfigurableSource
+import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
-import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.network.asObservableSuccess
 import okhttp3.Request
 import okhttp3.Response
-import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 
-class MyComicList : HttpSource() {
+class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     override val name = "MyComicList"
-    override val baseUrl = "https://mycomiclist.org"
     override val lang = "en"
+    override val baseUrl = "https://mycomiclist.org"
     override val supportsLatest = true
 
-    // --- utilities ---
+    // -------------------------------------------------------------
+    // Popular Manga
+    // -------------------------------------------------------------
 
-    private fun toRelative(url: String): String {
-        val fixed = url
-            .replace("https//", "https://")
-            .replace("http//", "http://")
+    override fun popularMangaRequest(page: Int) =
+        GET("$baseUrl/popular-comic?page=$page")
 
-        return when {
-            fixed.startsWith("http") ->
-                fixed.substringAfter(baseUrl)
-            else -> fixed
-        }
+    override fun popularMangaSelector() =
+        "div.comic-box"
+
+    override fun popularMangaFromElement(element: Element): SManga {
+        val manga = SManga.create()
+
+        manga.title = element.selectFirst("h3 a")?.text().orEmpty()
+        manga.setUrlWithoutDomain(element.selectFirst("h3 a")?.attr("href").orEmpty())
+        manga.thumbnail_url = element.selectFirst("img")?.attr("src")
+
+        return manga
     }
 
-    private fun fixUrl(url: String): String {
-        val fixed = url
-            .replaceFirst("https//", "https://")
-            .replaceFirst("http//", "http://")
+    override fun popularMangaNextPageSelector() =
+        "a.next"
 
-        return if (fixed.startsWith("http")) fixed else baseUrl + fixed
-    }
+    // -------------------------------------------------------------
+    // Latest Manga
+    // -------------------------------------------------------------
 
-    private fun Response.asJsoup(): Document = Jsoup.parse(body.string())
+    override fun latestUpdatesRequest(page: Int) =
+        GET("$baseUrl/latest-comic?page=$page")
 
-    // --- LIST ---
+    override fun latestUpdatesSelector() =
+        "div.comic-box"
 
-    override fun popularMangaRequest(page: Int): Request =
-        GET("$baseUrl/popular-comic?page=$page", headers)
+    override fun latestUpdatesFromElement(element: Element) =
+        popularMangaFromElement(element)
 
-    override fun latestUpdatesRequest(page: Int): Request =
-        GET("$baseUrl/hot-comic?page=$page", headers)
+    override fun latestUpdatesNextPageSelector() =
+        "a.next"
+
+    // -------------------------------------------------------------
+    // Search
+    // -------------------------------------------------------------
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val tagFilter = filters.filterIsInstance<TagFilter>().firstOrNull()
+        val urlBuilder = baseUrl
 
-        return when {
-            query.isNotBlank() ->
-                GET("$baseUrl/comic-search?key=${query.trim()}&page=$page", headers)
+        var selectedGenre: Tag? = null
+        var selectedStatus: String? = null
 
-            tagFilter?.selected != null ->
-                GET("$baseUrl/${tagFilter.selected!!.key}-comic?page=$page", headers)
-
-            else ->
-                popularMangaRequest(page)
-        }
-    }
-
-    override fun popularMangaParse(response: Response) = parseList(response)
-    override fun latestUpdatesParse(response: Response) = parseList(response)
-    override fun searchMangaParse(response: Response) = parseList(response)
-
-    private fun parseList(response: Response): MangasPage {
-        val doc = response.asJsoup()
-
-        val mangas = doc.select("div.manga-box").map { div ->
-            val a = div.selectFirst("a")!!
-            val rawUrl = a.attr("href")
-            val url = fixUrl(rawUrl)
-
-            val title = div.selectFirst("h3 a")?.text().orEmpty()
-            val img = div.selectFirst("img.lazyload")?.attr("data-src")
-
-            SManga.create().apply {
-                this.url = toRelative(url)
-                this.title = title
-                this.thumbnail_url = img
+        filters.forEach { filter ->
+            when (filter) {
+                is GenreFilter -> selectedGenre = filter.selectedTag
+                is StateFilter -> {
+                    selectedStatus = when (filter.state) {
+                        1 -> "ongoing"
+                        2 -> "finished"
+                        else -> null
+                    }
+                }
             }
         }
 
-        val hasNext = doc.select("a[rel=next]").isNotEmpty()
-        return MangasPage(mangas, hasNext)
+        // Si seleccionó un género → ir directo a /genre-comic
+        selectedGenre?.let { tag ->
+            return GET("$baseUrl/${tag.key}-comic")
+        }
+
+        // Si es búsqueda normal
+        return if (query.isNotBlank()) {
+            GET("$baseUrl/search?q=$query")
+        } else {
+            GET(baseUrl)
+        }
     }
 
-    // --- DETAILS ---
+    override fun searchMangaSelector() =
+        "div.comic-box"
+
+    override fun searchMangaFromElement(element: Element) =
+        popularMangaFromElement(element)
+
+    override fun searchMangaNextPageSelector() =
+        "a.next"
+
+    // -------------------------------------------------------------
+    // Manga Details
+    // -------------------------------------------------------------
 
     override fun mangaDetailsParse(response: Response): SManga {
         val doc = response.asJsoup()
 
-        val realTitle = doc.selectFirst("td:contains(Name:) + td strong")?.text()
+        val manga = SManga.create()
 
-        val authorText = doc.selectFirst("td:contains(Author:) + td")?.text()
+        manga.title = doc.selectFirst("h1.manga-title")?.text().orEmpty()
+        manga.thumbnail_url = doc.selectFirst("div.manga-cover img")?.attr("src")
+        manga.description = doc.select("div.manga-right > p").firstOrNull()?.text()
+
+        val author = doc.selectFirst("td:contains(Author:) + td")?.text()
+        manga.author = author
+        manga.artist = author
 
         val genres = doc.select("td:contains(Genres:) + td a").map { it.text() }
+        manga.genre = genres.joinToString(", ")
 
-        val statusText = doc.selectFirst("td:contains(Status:) + td a")
-            ?.text()
-            ?.lowercase()
-
-        val status = when (statusText) {
-            "ongoing" -> SManga.ONGOING
-            "completed" -> SManga.COMPLETED
+        val statusText = doc.selectFirst("td:contains(Status:) + td")?.text()?.lowercase()
+        manga.status = when {
+            statusText?.contains("ongoing") == true -> SManga.ONGOING
+            statusText?.contains("complete") == true -> SManga.COMPLETED
             else -> SManga.UNKNOWN
         }
 
-        val desc = doc.selectFirst("div.manga-desc p.pdesc")?.html()
-
-        return SManga.create().apply {
-            title = realTitle ?: doc.selectFirst("h1")?.ownText().orEmpty()
-            thumbnail_url = doc.selectFirst("div.manga-cover img")?.attr("src")
-            author = authorText
-            artist = authorText
-            genre = genres.joinToString(", ")
-            description = desc
-            this.status = status
-        }
+        return manga
     }
 
-    // --- CHAPTERS ---
+    // -------------------------------------------------------------
+    // Chapters
+    // -------------------------------------------------------------
 
-    override fun chapterListParse(response: Response): List<SChapter> {
-        val doc = response.asJsoup()
+    override fun chapterListSelector() =
+        "ul.chapters-list li"
 
-        return doc.select("ul.basic-list li").mapIndexedNotNull { i, li ->
-            val a = li.selectFirst("a.ch-name") ?: return@mapIndexedNotNull null
+    override fun chapterFromElement(element: Element): SChapter {
+        val chapter = SChapter.create()
 
-            val rawUrl = a.attr("href")
-            val url = fixUrl(rawUrl)
+        val a = element.selectFirst("a")!!
 
-            val name = a.text()
+        chapter.name = a.text()
+        chapter.setUrlWithoutDomain(a.attr("href"))
 
-            SChapter.create().apply {
-                this.url = toRelative(url)
-                this.name = name
-                chapter_number = name.substringAfter('#').toFloatOrNull() ?: (i + 1f)
-            }
-        }
+        return chapter
     }
 
-    // --- PAGES ---
-
-    override fun pageListRequest(chapter: SChapter): Request =
-        GET(baseUrl + chapter.url + "/all", headers)
+    // -------------------------------------------------------------
+    // Page List
+    // -------------------------------------------------------------
 
     override fun pageListParse(response: Response): List<Page> {
         val doc = response.asJsoup()
 
         return doc.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
-            val src = img.attr("data-src")
-            if (src.isNullOrBlank()) null else Page(index, "", src)
+            img.attr("data-src")
+                .takeIf { it.isNotBlank() }
+                ?.let { Page(index, "", it) }
         }
     }
 
     override fun imageUrlParse(response: Response): String =
         throw UnsupportedOperationException("Not used")
 
-    // --- FILTERS ---
+    // -------------------------------------------------------------
+    // Filters
+    // -------------------------------------------------------------
 
-    override fun getFilterList(): FilterList {
-        val tags = getTags()
+    override fun getFilterList(): FilterList =
+        FilterList(
+            GenreFilter(getTags()),
+            StateFilter(),
+        )
 
-        val filters = mutableListOf<Filter<*>>()
-
-        if (tags.isNotEmpty()) {
-            filters += TagFilter(tags)
-        }
-
-        filters += StateFilter()
-
-        return FilterList(filters)
-    }
-
+    // Scrapeo de géneros desde el home
     private fun getTags(): List<Tag> {
         return try {
             val doc = client.newCall(GET(baseUrl)).execute().asJsoup()
-            doc.select("div.cr-anime-box.genre-box a.genre-name").map { a ->
+            doc.select("a.genre-name").map { a ->
                 Tag(
                     key = a.attr("href")
                         .substringAfterLast('/')
@@ -199,11 +200,18 @@ class MyComicList : HttpSource() {
 
     class Tag(val key: String, val title: String)
 
-    class TagFilter(tags: List<Tag>) :
-        Filter.Select<Tag>("Genre", tags.toTypedArray()) {
-        val selected get() = if (state in values.indices) values[state] else null
+    class GenreFilter(private val tags: List<Tag>) :
+        Filter.Select<String>(
+            "Genre",
+            tags.map { it.title }.toTypedArray()
+        ) {
+        val selectedTag: Tag?
+            get() = tags.getOrNull(state)
     }
 
     class StateFilter :
-        Filter.Select<String>("Status", arrayOf("Any", "Ongoing", "Finished"))
+        Filter.Select<String>(
+            "Status",
+            arrayOf("Any", "Ongoing", "Finished")
+        )
 }
