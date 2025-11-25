@@ -75,7 +75,7 @@ class MyComicList : HttpSource() {
     override fun mangaDetailsParse(response: Response): SManga {
         val doc = response.asJsoup()
 
-        val author = doc.selectFirst("td:contains(Author:) + td")?.text()
+        val authorText = doc.selectFirst("td:contains(Author:) + td")?.text()
 
         val genres = doc.select("td:contains(Genres:) + td a").map { a ->
             a.text()
@@ -96,8 +96,8 @@ class MyComicList : HttpSource() {
         return SManga.create().apply {
             title = doc.selectFirst("h1")?.text().orEmpty()
             thumbnail_url = doc.selectFirst("div.manga-cover img")?.attr("src")
-            author = author
-            artist = author
+            author = authorText
+            artist = authorText
             genre = genres.joinToString(", ")
             description = desc
             this.status = status
