@@ -174,11 +174,11 @@ class MyComicList : HttpSource() {
 
         if (tags.isNotEmpty()) {
             filters += TagFilter(tags)
-    }
+        }
 
-    filters += StateFilter()
+        filters += StateFilter()
 
-    return FilterList(filters)
+        return FilterList(filters)
     }
 
     private fun getTags(): List<Tag> {
