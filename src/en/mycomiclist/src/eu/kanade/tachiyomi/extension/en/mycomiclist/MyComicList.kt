@@ -9,7 +9,6 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Request
-import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -164,56 +163,67 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     override fun getFilterList(): FilterList {
         return FilterList(
             TagFilter(STATIC_TAGS),
-            StateFilter()
+            StateFilter(),
         )
     }
 
     // Géneros estáticos detectados desde tu HTML
     private val STATIC_TAGS = listOf(
+        Tag("marvel", "Marvel"),
+        Tag("dc-comics", "DC Comics"),
         Tag("action", "Action"),
-        Tag("adult", "Adult"),
         Tag("adventure", "Adventure"),
-        Tag("aliens", "Aliens"),
-        Tag("animals", "Animals"),
-        Tag("anime", "Anime"),
         Tag("anthology", "Anthology"),
+        Tag("anthropomorphic", "Anthropomorphic"),
         Tag("biography", "Biography"),
-        Tag("cartoon", "Cartoon"),
+        Tag("children", "Children"),
         Tag("comedy", "Comedy"),
         Tag("crime", "Crime"),
+        Tag("cyborgs", "Cyborgs"),
+        Tag("dark-horse", "Dark Horse"),
         Tag("demons", "Demons"),
         Tag("drama", "Drama"),
-        Tag("family", "Family"),
         Tag("fantasy", "Fantasy"),
+        Tag("family", "Family"),
         Tag("fighting", "Fighting"),
-        Tag("gaming", "Gaming"),
-        Tag("gender-bender", "Gender Bender"),
         Tag("gore", "Gore"),
+        Tag("graphic-novels", "Graphic Novels"),
         Tag("historical", "Historical"),
         Tag("horror", "Horror"),
-        Tag("magical-girls", "Magical Girls"),
+        Tag("leading-ladies", "Leading Ladies"),
+        Tag("literature", "Literature"),
+        Tag("magic", "Magic"),
         Tag("manga", "Manga"),
         Tag("martial-arts", "Martial Arts"),
+        Tag("mature", "Mature"),
         Tag("mecha", "Mecha"),
         Tag("military", "Military"),
         Tag("movies-tv", "Movies & TV"),
-        Tag("music", "Music"),
         Tag("mystery", "Mystery"),
-        Tag("one-shot", "One Shot"),
-        Tag("parody", "Parody"),
+        Tag("mythology", "Mythology"),
         Tag("psychological", "Psychological"),
-        Tag("reincarnation", "Reincarnation"),
+        Tag("personal", "Personal"),
+        Tag("political", "Political"),
+        Tag("post-apocalyptic", "Post-Apocalyptic"),
+        Tag("pulp", "Pulp"),
+        Tag("robots", "Robots"),
         Tag("romance", "Romance"),
-        Tag("school", "School"),
         Tag("sci-fi", "Sci-Fi"),
         Tag("slice-of-life", "Slice of Life"),
         Tag("sports", "Sports"),
+        Tag("spy", "Spy"),
+        Tag("superhero", "Superhero"),
         Tag("supernatural", "Supernatural"),
+        Tag("suspense", "Suspense"),
         Tag("thriller", "Thriller"),
         Tag("tragedy", "Tragedy"),
-        Tag("vampire", "Vampire"),
-        Tag("workplace", "Workplace"),
-    )
+        Tag("vampires", "Vampires"),
+        Tag("vertigo", "Vertigo"),
+        Tag("video-games", "Video Games"),
+        Tag("war", "War"),
+        Tag("western", "Western"),
+        Tag("zombies", "Zombies"),
+)
 
     class Tag(val key: String, val title: String)
 
