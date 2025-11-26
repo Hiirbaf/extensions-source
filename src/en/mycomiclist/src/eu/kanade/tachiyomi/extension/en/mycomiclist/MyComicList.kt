@@ -133,13 +133,32 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
         val url = fixUrl(rawUrl)
         val name = a.text()
 
+        val dateText = element.selectFirst("span")?.text()?.trim().orEmpty()
+
         return SChapter.create().apply {
             setUrlWithoutDomain(toRelative(url))
             this.name = name
             chapter_number = name.substringAfter('#').toFloatOrNull() ?: 0f
-        }
+            date_upload = parseDate(dateText)
+       }
     }
 
+    private fun parseDate(text: String): Long {
+        val normalized = text.trim()
+
+        // Today (sin hora exacta)
+        if (normalized.equals("Today", ignoreCase = true)) {
+            return System.currentTimeMillis()
+        }
+
+        // dd-MMM-yyyy (ej: 22-Oct-2025)
+        return try {
+            val formatter = java.text.SimpleDateFormat("dd-MMM-yyyy", java.util.Locale.ENGLISH)
+            formatter.parse(normalized)?.time ?: 0L
+        } catch (_: Exception) {
+            0L
+        }
+    }
     // -------------------------------------------------------------
     // Pages
     // -------------------------------------------------------------
