@@ -67,21 +67,19 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             when (f) {
                 is TagFilter -> selectedTag = f.selected
                 is StateFilter -> selectedStatus = f.state
+                else -> Unit
             }
         }
 
-        // Status filter
         when (selectedStatus) {
             1 -> return GET("$baseUrl/ongoing-comic?page=$page", headers)
             2 -> return GET("$baseUrl/completed-comic?page=$page", headers)
         }
 
-        // Genre filter
         selectedTag?.let {
             return GET("$baseUrl/${it.key}-comic?page=$page", headers)
         }
 
-        // Text search
         if (query.isNotBlank()) {
             return GET("$baseUrl/comic-search?key=${query.trim()}&page=$page", headers)
         }
@@ -227,6 +225,7 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     class TagFilter(private val tags: List<Tag>) :
         Filter.Select<String>("Genre", tags.map { it.title }.toTypedArray()) {
+
         val selected: Tag?
             get() = tags.getOrNull(state)
     }
@@ -235,7 +234,17 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
         Filter.Select<String>("Status", arrayOf("Any", "Ongoing", "Completed"))
 
     // -------------------------------------------------------------
-    // ConfigurableSource
+    // Utils
     // -------------------------------------------------------------
+    private fun toRelative(url: String): String {
+        val fixed = url.replace("https//", "https://").replace("http//", "http://")
+        return if (fixed.startsWith("http")) fixed.substringAfter(baseUrl) else fixed
+    }
+
+    private fun fixUrl(url: String): String {
+        val fixed = url.replaceFirst("https//", "https://").replaceFirst("http//", "http://")
+        return if (fixed.startsWith("http")) fixed else baseUrl + url
+    }
+
     override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {}
 }
