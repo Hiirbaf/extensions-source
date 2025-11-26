@@ -70,18 +70,18 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             }
         }
 
-        // Estado
+        // Status filter
         when (selectedStatus) {
             1 -> return GET("$baseUrl/ongoing-comic?page=$page", headers)
             2 -> return GET("$baseUrl/completed-comic?page=$page", headers)
         }
 
-        // Genre
+        // Genre filter
         selectedTag?.let {
             return GET("$baseUrl/${it.key}-comic?page=$page", headers)
         }
 
-        // Text
+        // Text search
         if (query.isNotBlank()) {
             return GET("$baseUrl/comic-search?key=${query.trim()}&page=$page", headers)
         }
@@ -159,7 +159,6 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // Filters
     // -------------------------------------------------------------
-
     override fun getFilterList(): FilterList {
         return FilterList(
             TagFilter(STATIC_TAGS),
@@ -167,7 +166,6 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
         )
     }
 
-    // Géneros estáticos detectados desde tu HTML
     private val STATIC_TAGS = listOf(
         Tag("marvel", "Marvel"),
         Tag("dc-comics", "DC Comics"),
@@ -227,10 +225,10 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     class Tag(val key: String, val title: String)
 
-    class TagFilter(tags: List<Tag>) :
-        Filter.Select<Tag>("Genre", tags.toTypedArray()) {
+    class TagFilter(private val tags: List<Tag>) :
+        Filter.Select<String>("Genre", tags.map { it.title }.toTypedArray()) {
         val selected: Tag?
-            get() = if (state in values.indices) values[state] else null
+            get() = tags.getOrNull(state)
     }
 
     class StateFilter :
@@ -239,7 +237,5 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // ConfigurableSource
     // -------------------------------------------------------------
-    override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
-        // No preferences
-    }
+    override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {}
 }
