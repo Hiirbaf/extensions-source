@@ -16,140 +16,124 @@ import org.jsoup.nodes.Element
 class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     override val name = "MyComicList"
-    override val lang = "en"
     override val baseUrl = "https://mycomiclist.org"
+    override val lang = "en"
     override val supportsLatest = true
 
     // -------------------------------------------------------------
-    // Popular Manga
+    // Popular
     // -------------------------------------------------------------
+    override fun popularMangaRequest(page: Int): Request =
+        GET("$baseUrl/popular-comic?page=$page", headers)
 
-    override fun popularMangaRequest(page: Int) =
-        GET("$baseUrl/popular-comic?page=$page")
-
-    override fun popularMangaSelector() =
-        "div.comic-box"
+    override fun popularMangaSelector(): String = "div.manga-box"
 
     override fun popularMangaFromElement(element: Element): SManga {
+        val a = element.selectFirst("a")!!
+        val rawUrl = a.attr("href")
+        val url = fixUrl(rawUrl)
+        val title = element.selectFirst("h3 a")?.text().orEmpty()
+        val img = element.selectFirst("img.lazyload")?.attr("data-src")
+
         return SManga.create().apply {
-            title = element.selectFirst("h3 a")?.text().orEmpty()
-            setUrlWithoutDomain(element.selectFirst("h3 a")?.attr("href").orEmpty())
-            thumbnail_url = element.selectFirst("img")?.attr("src")
+            setUrlWithoutDomain(toRelative(url))
+            this.title = title
+            thumbnail_url = img
         }
     }
 
-    override fun popularMangaNextPageSelector() =
-        "a.next"
+    override fun popularMangaNextPageSelector(): String = "a[rel=next]"
 
     // -------------------------------------------------------------
-    // Latest Updates
+    // Latest
     // -------------------------------------------------------------
+    override fun latestUpdatesRequest(page: Int): Request =
+        GET("$baseUrl/hot-comic?page=$page", headers)
 
-    override fun latestUpdatesRequest(page: Int) =
-        GET("$baseUrl/latest-comic?page=$page")
+    override fun latestUpdatesSelector(): String = "div.manga-box"
 
-    override fun latestUpdatesSelector() =
-        "div.comic-box"
-
-    override fun latestUpdatesFromElement(element: Element) =
+    override fun latestUpdatesFromElement(element: Element): SManga =
         popularMangaFromElement(element)
 
-    override fun latestUpdatesNextPageSelector() =
-        "a.next"
+    override fun latestUpdatesNextPageSelector(): String = "a[rel=next]"
 
     // -------------------------------------------------------------
     // Search
     // -------------------------------------------------------------
-
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        var selectedGenre: Tag? = null
-        var selectedStatus: String? = null
+        val tagFilter = filters.filterIsInstance<TagFilter>().firstOrNull()
 
-        filters.forEach { filter ->
-            when (filter) {
-                is GenreFilter -> selectedGenre = filter.selectedTag
-                is StateFilter -> selectedStatus = when (filter.state) {
-                    1 -> "ongoing"
-                    2 -> "finished"
-                    else -> null
-                }
-                else -> {}
-            }
-        }
+        return when {
+            query.isNotBlank() ->
+                GET("$baseUrl/comic-search?key=${query.trim()}&page=$page", headers)
 
-        selectedGenre?.let { tag ->
-            return GET("$baseUrl/${tag.key}-comic")
-        }
+            tagFilter?.selected != null ->
+                GET("$baseUrl/${tagFilter.selected!!.key}-comic?page=$page", headers)
 
-        return if (query.isNotBlank()) {
-            GET("$baseUrl/search?q=$query")
-        } else {
-            GET(baseUrl)
+            else ->
+                popularMangaRequest(page)
         }
     }
 
-    override fun searchMangaSelector() =
-        "div.comic-box"
+    override fun searchMangaSelector(): String = "div.manga-box"
 
-    override fun searchMangaFromElement(element: Element) =
+    override fun searchMangaFromElement(element: Element): SManga =
         popularMangaFromElement(element)
 
-    override fun searchMangaNextPageSelector() =
-        "a.next"
+    override fun searchMangaNextPageSelector(): String = "a[rel=next]"
 
     // -------------------------------------------------------------
-    // Manga Details
+    // Manga details
     // -------------------------------------------------------------
-
     override fun mangaDetailsParse(document: Document): SManga {
+        val realTitle = document.selectFirst("td:contains(Name:) + td strong")?.text()
+        val authorText = document.selectFirst("td:contains(Author:) + td")?.text()
+        val genres = document.select("td:contains(Genres:) + td a").map { it.text() }
+        val statusText = document.selectFirst("td:contains(Status:) + td a")?.text()?.lowercase()
+        val status = when (statusText) {
+            "ongoing" -> SManga.ONGOING
+            "completed" -> SManga.COMPLETED
+            else -> SManga.UNKNOWN
+        }
+        val desc = document.selectFirst("div.manga-desc p.pdesc")?.html()
+
         return SManga.create().apply {
-            title = document.selectFirst("h1.manga-title")?.text().orEmpty()
+            title = realTitle ?: document.selectFirst("h1")?.ownText().orEmpty()
             thumbnail_url = document.selectFirst("div.manga-cover img")?.attr("src")
-            description = document.select("div.manga-right > p").firstOrNull()?.text()
-
-            val authorTag = document.selectFirst("td:contains(Author:) + td")?.text()
-            author = authorTag
-            artist = authorTag
-
-            genre = document.select("td:contains(Genres:) + td a")
-                .joinToString(", ") { it.text() }
-
-            val statusText = document.selectFirst("td:contains(Status:) + td")
-                ?.text()
-                ?.lowercase()
-
-            status = when {
-                statusText?.contains("ongoing") == true -> SManga.ONGOING
-                statusText?.contains("complete") == true -> SManga.COMPLETED
-                else -> SManga.UNKNOWN
-            }
+            author = authorText
+            artist = authorText
+            genre = genres.joinToString(", ")
+            description = desc
+            this.status = status
         }
     }
 
     // -------------------------------------------------------------
     // Chapters
     // -------------------------------------------------------------
-
-    override fun chapterListSelector() =
-        "ul.chapters-list li"
+    override fun chapterListSelector(): String = "ul.basic-list li"
 
     override fun chapterFromElement(element: Element): SChapter {
-        val a = element.selectFirst("a")!!
+        val a = element.selectFirst("a.ch-name")!!
+
+        val rawUrl = a.attr("href")
+        val url = fixUrl(rawUrl)
+        val name = a.text()
+
         return SChapter.create().apply {
-            name = a.text()
-            setUrlWithoutDomain(a.attr("href"))
+            setUrlWithoutDomain(toRelative(url))
+            this.name = name
+            chapter_number = name.substringAfter('#').toFloatOrNull() ?: 0f
         }
     }
 
     // -------------------------------------------------------------
-    // Page List
+    // Pages
     // -------------------------------------------------------------
-
     override fun pageListParse(document: Document): List<Page> {
         return document.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
-            img.attr("data-src")
-                .takeIf { it.isNotBlank() }
-                ?.let { url -> Page(index, "", url) }
+            val src = img.attr("data-src")
+            if (src.isNullOrBlank()) null else Page(index, "", src)
         }
     }
 
@@ -159,62 +143,58 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // Filters
     // -------------------------------------------------------------
-
-    override fun getFilterList(): FilterList =
-        FilterList(
-            GenreFilter(getTags()),
-            StateFilter(),
-        )
-
-    // -------------------------------------------------------------
-    // Tags scraping
-    // -------------------------------------------------------------
+    override fun getFilterList(): FilterList {
+        val tags = getTags()
+        val filters = mutableListOf<Filter<*>>()
+        if (tags.isNotEmpty()) filters += TagFilter(tags)
+        filters += StateFilter()
+        return FilterList(filters)
+    }
 
     private fun getTags(): List<Tag> {
         return try {
-            val response = client.newCall(GET(baseUrl)).execute()
+            val response = client.newCall(GET(baseUrl, headers)).execute()
             val body = response.body?.string().orEmpty()
             val doc = Jsoup.parse(body)
-
-            doc.select("a.genre-name").map { a ->
+            doc.select("div.cr-anime-box.genre-box a.genre-name").map { a ->
                 Tag(
-                    key = a.attr("href")
-                        .substringAfterLast('/')
-                        .substringBefore("-comic"),
-                    title = a.text(),
+                    key = a.attr("href").substringAfterLast('/').substringBefore("-comic"),
+                    title = a.text()
                 )
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             emptyList()
         }
     }
 
     // -------------------------------------------------------------
-    // Filter classes
+    // Utils & filter classes
     // -------------------------------------------------------------
+    private fun toRelative(url: String): String {
+        val fixed = url.replace("https//", "https://").replace("http//", "http://")
+        return if (fixed.startsWith("http")) fixed.substringAfter(baseUrl) else fixed
+    }
+
+    private fun fixUrl(url: String): String {
+        val fixed = url.replaceFirst("https//", "https://").replaceFirst("http//", "http://")
+        return if (fixed.startsWith("http")) fixed else baseUrl + url
+    }
 
     class Tag(val key: String, val title: String)
 
-    class GenreFilter(private val tags: List<Tag>) :
-        Filter.Select<String>(
-            "Genre",
-            tags.map { it.title }.toTypedArray(),
-        ) {
-        val selectedTag: Tag?
-            get() = tags.getOrNull(state)
+    class TagFilter(tags: List<Tag>) :
+        Filter.Select<Tag>("Genre", tags.toTypedArray()) {
+        val selected: Tag?
+            get() = if (state in values.indices) values[state] else null
     }
 
     class StateFilter :
-        Filter.Select<String>(
-            "Status",
-            arrayOf("Any", "Ongoing", "Finished"),
-        )
+        Filter.Select<String>("Status", arrayOf("Any", "Ongoing", "Finished"))
 
     // -------------------------------------------------------------
-    // Required by ConfigurableSource
+    // ConfigurableSource
     // -------------------------------------------------------------
-
     override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
-        // No preferences
+        // no preferences
     }
 }
