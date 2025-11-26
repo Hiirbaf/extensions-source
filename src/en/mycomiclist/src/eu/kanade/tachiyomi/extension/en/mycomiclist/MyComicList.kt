@@ -224,10 +224,10 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     class Tag(val key: String, val title: String)
 
     class TagFilter(private val tags: List<Tag>) :
-        Filter.Select<String>("Genre", tags.map { it.title }.toTypedArray()) {
+        Filter.Select<String>("Genre", arrayOf("Any") + tags.map { it.title }.toTypedArray()) {
 
         val selected: Tag?
-            get() = tags.getOrNull(state)
+            get() = if (state == 0) null else tags[state - 1]
     }
 
     class StateFilter :
