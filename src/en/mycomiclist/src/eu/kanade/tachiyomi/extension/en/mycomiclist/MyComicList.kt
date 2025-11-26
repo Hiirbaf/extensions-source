@@ -223,7 +223,7 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
         Tag("war", "War"),
         Tag("western", "Western"),
         Tag("zombies", "Zombies"),
-)
+    )
 
     class Tag(val key: String, val title: String)
 
