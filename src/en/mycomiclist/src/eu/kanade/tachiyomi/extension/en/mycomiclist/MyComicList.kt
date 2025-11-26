@@ -61,18 +61,33 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // Search
     // -------------------------------------------------------------
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val tagFilter = filters.filterIsInstance<TagFilter>().firstOrNull()
+        var selectedTag: Tag? = null
+        var selectedStatus = 0
 
-        return when {
-            query.isNotBlank() ->
-                GET("$baseUrl/comic-search?key=${query.trim()}&page=$page", headers)
-
-            tagFilter?.selected != null ->
-                GET("$baseUrl/${tagFilter.selected!!.key}-comic?page=$page", headers)
-
-            else ->
-                popularMangaRequest(page)
+        filters.forEach { f ->
+            when (f) {
+                is TagFilter -> selectedTag = f.selected
+                is StateFilter -> selectedStatus = f.state
+            }
         }
+
+        // Estado
+        when (selectedStatus) {
+            1 -> return GET("$baseUrl/ongoing-comic?page=$page", headers)
+            2 -> return GET("$baseUrl/completed-comic?page=$page", headers)
+        }
+
+        // Genre
+        selectedTag?.let {
+            return GET("$baseUrl/${it.key}-comic?page=$page", headers)
+        }
+
+        // Text
+        if (query.isNotBlank()) {
+            return GET("$baseUrl/comic-search?key=${query.trim()}&page=$page", headers)
+        }
+
+        return popularMangaRequest(page)
     }
 
     override fun searchMangaSelector(): String = "div.manga-box"
@@ -90,11 +105,13 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
         val authorText = document.selectFirst("td:contains(Author:) + td")?.text()
         val genres = document.select("td:contains(Genres:) + td a").map { it.text() }
         val statusText = document.selectFirst("td:contains(Status:) + td a")?.text()?.lowercase()
+
         val status = when (statusText) {
             "ongoing" -> SManga.ONGOING
             "completed" -> SManga.COMPLETED
             else -> SManga.UNKNOWN
         }
+
         val desc = document.selectFirst("div.manga-desc p.pdesc")?.html()
 
         return SManga.create().apply {
@@ -115,7 +132,6 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     override fun chapterFromElement(element: Element): SChapter {
         val a = element.selectFirst("a.ch-name")!!
-
         val rawUrl = a.attr("href")
         val url = fixUrl(rawUrl)
         val name = a.text()
@@ -130,17 +146,13 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // Pages
     // -------------------------------------------------------------
-    override fun pageListRequest(chapter: SChapter): Request {
-        return GET(baseUrl + chapter.url + "/all")
-    }
+    override fun pageListRequest(chapter: SChapter): Request =
+        GET(baseUrl + chapter.url + "/all")
 
-    override fun pageListParse(document: Document): List<Page> {
-        return document.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
-            img.attr("data-src").takeIf { it.isNotBlank() }?.let { url ->
-                Page(index, "", url)
-            }
+    override fun pageListParse(document: Document): List<Page> =
+        document.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
+            img.attr("data-src").takeIf { it.isNotBlank() }?.let { Page(index, "", it) }
         }
-    }
 
     override fun imageUrlParse(document: Document): String =
         throw UnsupportedOperationException("Not used")
@@ -148,42 +160,60 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // Filters
     // -------------------------------------------------------------
+
     override fun getFilterList(): FilterList {
-        val tags = getTags()
-        val filters = mutableListOf<Filter<*>>()
-        if (tags.isNotEmpty()) filters += TagFilter(tags)
-        filters += StateFilter()
-        return FilterList(filters)
+        return FilterList(
+            TagFilter(STATIC_TAGS),
+            StateFilter()
+        )
     }
 
-    private fun getTags(): List<Tag> {
-        return try {
-            val response = client.newCall(GET(baseUrl, headers)).execute()
-            val body = response.body?.string().orEmpty()
-            val doc = Jsoup.parse(body)
-            doc.select("div.cr-anime-box.genre-box a.genre-name").map { a ->
-                Tag(
-                    key = a.attr("href").substringAfterLast('/').substringBefore("-comic"),
-                    title = a.text(),
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    // -------------------------------------------------------------
-    // Utils & filter classes
-    // -------------------------------------------------------------
-    private fun toRelative(url: String): String {
-        val fixed = url.replace("https//", "https://").replace("http//", "http://")
-        return if (fixed.startsWith("http")) fixed.substringAfter(baseUrl) else fixed
-    }
-
-    private fun fixUrl(url: String): String {
-        val fixed = url.replaceFirst("https//", "https://").replaceFirst("http//", "http://")
-        return if (fixed.startsWith("http")) fixed else baseUrl + url
-    }
+    // Géneros estáticos detectados desde tu HTML
+    private val STATIC_TAGS = listOf(
+        Tag("action", "Action"),
+        Tag("adult", "Adult"),
+        Tag("adventure", "Adventure"),
+        Tag("aliens", "Aliens"),
+        Tag("animals", "Animals"),
+        Tag("anime", "Anime"),
+        Tag("anthology", "Anthology"),
+        Tag("biography", "Biography"),
+        Tag("cartoon", "Cartoon"),
+        Tag("comedy", "Comedy"),
+        Tag("crime", "Crime"),
+        Tag("demons", "Demons"),
+        Tag("drama", "Drama"),
+        Tag("family", "Family"),
+        Tag("fantasy", "Fantasy"),
+        Tag("fighting", "Fighting"),
+        Tag("gaming", "Gaming"),
+        Tag("gender-bender", "Gender Bender"),
+        Tag("gore", "Gore"),
+        Tag("historical", "Historical"),
+        Tag("horror", "Horror"),
+        Tag("magical-girls", "Magical Girls"),
+        Tag("manga", "Manga"),
+        Tag("martial-arts", "Martial Arts"),
+        Tag("mecha", "Mecha"),
+        Tag("military", "Military"),
+        Tag("movies-tv", "Movies & TV"),
+        Tag("music", "Music"),
+        Tag("mystery", "Mystery"),
+        Tag("one-shot", "One Shot"),
+        Tag("parody", "Parody"),
+        Tag("psychological", "Psychological"),
+        Tag("reincarnation", "Reincarnation"),
+        Tag("romance", "Romance"),
+        Tag("school", "School"),
+        Tag("sci-fi", "Sci-Fi"),
+        Tag("slice-of-life", "Slice of Life"),
+        Tag("sports", "Sports"),
+        Tag("supernatural", "Supernatural"),
+        Tag("thriller", "Thriller"),
+        Tag("tragedy", "Tragedy"),
+        Tag("vampire", "Vampire"),
+        Tag("workplace", "Workplace"),
+    )
 
     class Tag(val key: String, val title: String)
 
@@ -194,12 +224,12 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     }
 
     class StateFilter :
-        Filter.Select<String>("Status", arrayOf("Any", "Ongoing", "Finished"))
+        Filter.Select<String>("Status", arrayOf("Any", "Ongoing", "Completed"))
 
     // -------------------------------------------------------------
     // ConfigurableSource
     // -------------------------------------------------------------
     override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
-        // no preferences
+        // No preferences
     }
 }
