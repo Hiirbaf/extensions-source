@@ -159,7 +159,7 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             doc.select("div.cr-anime-box.genre-box a.genre-name").map { a ->
                 Tag(
                     key = a.attr("href").substringAfterLast('/').substringBefore("-comic"),
-                    title = a.text()
+                    title = a.text(),
                 )
             }
         } catch (e: Exception) {
