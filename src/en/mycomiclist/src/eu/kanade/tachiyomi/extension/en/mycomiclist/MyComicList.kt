@@ -130,10 +130,15 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // Pages
     // -------------------------------------------------------------
+    override fun pageListRequest(chapter: SChapter): Request {
+        return GET(baseUrl + chapter.url + "/all")
+    }
+
     override fun pageListParse(document: Document): List<Page> {
         return document.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
-            val src = img.attr("data-src")
-            if (src.isNullOrBlank()) null else Page(index, "", src)
+            img.attr("data-src").takeIf { it.isNotBlank() }?.let { url ->
+                Page(index, "", url)
+            }
         }
     }
 
