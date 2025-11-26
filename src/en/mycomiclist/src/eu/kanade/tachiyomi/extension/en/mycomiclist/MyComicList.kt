@@ -73,6 +73,7 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
                     2 -> "finished"
                     else -> null
                 }
+                else -> {}
             }
         }
 
