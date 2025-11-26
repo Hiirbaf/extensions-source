@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Request
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -30,18 +31,18 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
         "div.comic-box"
 
     override fun popularMangaFromElement(element: Element): SManga {
-        val manga = SManga.create()
-        manga.title = element.selectFirst("h3 a")?.text().orEmpty()
-        manga.setUrlWithoutDomain(element.selectFirst("h3 a")?.attr("href").orEmpty())
-        manga.thumbnail_url = element.selectFirst("img")?.attr("src")
-        return manga
+        return SManga.create().apply {
+            title = element.selectFirst("h3 a")?.text().orEmpty()
+            setUrlWithoutDomain(element.selectFirst("h3 a")?.attr("href").orEmpty())
+            thumbnail_url = element.selectFirst("img")?.attr("src")
+        }
     }
 
     override fun popularMangaNextPageSelector() =
         "a.next"
 
     // -------------------------------------------------------------
-    // Latest Manga
+    // Latest Updates
     // -------------------------------------------------------------
 
     override fun latestUpdatesRequest(page: Int) =
@@ -72,7 +73,6 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
                     2 -> "finished"
                     else -> null
                 }
-                else -> {}
             }
         }
 
@@ -101,27 +101,28 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
 
     override fun mangaDetailsParse(document: Document): SManga {
-        val manga = SManga.create()
+        return SManga.create().apply {
+            title = document.selectFirst("h1.manga-title")?.text().orEmpty()
+            thumbnail_url = document.selectFirst("div.manga-cover img")?.attr("src")
+            description = document.select("div.manga-right > p").firstOrNull()?.text()
 
-        manga.title = document.selectFirst("h1.manga-title")?.text().orEmpty()
-        manga.thumbnail_url = document.selectFirst("div.manga-cover img")?.attr("src")
-        manga.description = document.select("div.manga-right > p").firstOrNull()?.text()
+            val authorTag = document.selectFirst("td:contains(Author:) + td")?.text()
+            author = authorTag
+            artist = authorTag
 
-        val author = document.selectFirst("td:contains(Author:) + td")?.text()
-        manga.author = author
-        manga.artist = author
+            genre = document.select("td:contains(Genres:) + td a")
+                .joinToString(", ") { it.text() }
 
-        val genres = document.select("td:contains(Genres:) + td a").map { it.text() }
-        manga.genre = genres.joinToString(", ")
+            val statusText = document.selectFirst("td:contains(Status:) + td")
+                ?.text()
+                ?.lowercase()
 
-        val statusText = document.selectFirst("td:contains(Status:) + td")?.text()?.lowercase()
-        manga.status = when {
-            statusText?.contains("ongoing") == true -> SManga.ONGOING
-            statusText?.contains("complete") == true -> SManga.COMPLETED
-            else -> SManga.UNKNOWN
+            status = when {
+                statusText?.contains("ongoing") == true -> SManga.ONGOING
+                statusText?.contains("complete") == true -> SManga.COMPLETED
+                else -> SManga.UNKNOWN
+            }
         }
-
-        return manga
     }
 
     // -------------------------------------------------------------
@@ -132,11 +133,11 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
         "ul.chapters-list li"
 
     override fun chapterFromElement(element: Element): SChapter {
-        val chapter = SChapter.create()
-        val a: Element = element.selectFirst("a")!!
-        chapter.name = a.text()
-        chapter.setUrlWithoutDomain(a.attr("href"))
-        return chapter
+        val a = element.selectFirst("a")!!
+        return SChapter.create().apply {
+            name = a.text()
+            setUrlWithoutDomain(a.attr("href"))
+        }
     }
 
     // -------------------------------------------------------------
@@ -144,10 +145,10 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
 
     override fun pageListParse(document: Document): List<Page> {
-        return document.select("img.chapter_img.lazyload").mapIndexedNotNull { index: Int, img: Element ->
-            img.attr("data-src").takeIf { it.isNotBlank() }?.let { url ->
-                Page(index, "", url)
-            }
+        return document.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
+            img.attr("data-src")
+                .takeIf { it.isNotBlank() }
+                ?.let { url -> Page(index, "", url) }
         }
     }
 
@@ -164,28 +165,55 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             StateFilter(),
         )
 
+    // -------------------------------------------------------------
+    // Tags scraping
+    // -------------------------------------------------------------
+
     private fun getTags(): List<Tag> {
         return try {
-            val doc = client.newCall(GET(baseUrl)).execute().parse() // parse() devuelve Document
-            doc.select("a.genre-name").map { a: Element ->
+            val response = client.newCall(GET(baseUrl)).execute()
+            val body = response.body?.string().orEmpty()
+            val doc = Jsoup.parse(body)
+
+            doc.select("a.genre-name").map { a ->
                 Tag(
-                    key = a.attr("href").substringAfterLast('/').substringBefore("-comic"),
+                    key = a.attr("href")
+                        .substringAfterLast('/')
+                        .substringBefore("-comic"),
                     title = a.text(),
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
 
+    // -------------------------------------------------------------
+    // Filter classes
+    // -------------------------------------------------------------
+
     class Tag(val key: String, val title: String)
 
     class GenreFilter(private val tags: List<Tag>) :
-        Filter.Select<String>("Genre", tags.map { it.title }.toTypedArray()) {
+        Filter.Select<String>(
+            "Genre",
+            tags.map { it.title }.toTypedArray(),
+        ) {
         val selectedTag: Tag?
             get() = tags.getOrNull(state)
     }
 
     class StateFilter :
-        Filter.Select<String>("Status", arrayOf("Any", "Ongoing", "Finished"))
+        Filter.Select<String>(
+            "Status",
+            arrayOf("Any", "Ongoing", "Finished"),
+        )
+
+    // -------------------------------------------------------------
+    // Required by ConfigurableSource
+    // -------------------------------------------------------------
+
+    override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
+        // No preferences
+    }
 }
