@@ -140,7 +140,7 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             this.name = name
             chapter_number = name.substringAfter('#').toFloatOrNull() ?: 0f
             date_upload = parseDate(dateText)
-       }
+        }
     }
 
     private fun parseDate(text: String): Long {
