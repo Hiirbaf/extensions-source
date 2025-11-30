@@ -610,73 +610,64 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        // --- Opción general ---
-        val nsfwGeneralPref = CheckBoxPreference(ctx).apply {
+        val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
             summary = "Bloquea automáticamente Ecchi, Girls Love, Boys Love, Harem y Trap"
             setDefaultValue(false)
         }
-        screen.addPreference(nsfwGeneralPref)
 
-        // --- Subopciones ---
-        val ecchiPref = CheckBoxPreference(ctx).apply {
+        val ecchi = CheckBoxPreference(ctx).apply {
             key = NSFW_ECCHI
             title = "Ocultar Ecchi"
             setDefaultValue(false)
         }
 
-        val glPref = CheckBoxPreference(ctx).apply {
+        val gl = CheckBoxPreference(ctx).apply {
             key = NSFW_GIRLS_LOVE
             title = "Ocultar Girls Love"
             setDefaultValue(false)
         }
 
-        val blPref = CheckBoxPreference(ctx).apply {
+        val bl = CheckBoxPreference(ctx).apply {
             key = NSFW_BOYS_LOVE
             title = "Ocultar Boys Love"
             setDefaultValue(false)
         }
 
-        val haremPref = CheckBoxPreference(ctx).apply {
+        val harem = CheckBoxPreference(ctx).apply {
             key = NSFW_HAREM
             title = "Ocultar Harem"
             setDefaultValue(false)
         }
 
-        val trapPref = CheckBoxPreference(ctx).apply {
+        val trap = CheckBoxPreference(ctx).apply {
             key = NSFW_TRAP
             title = "Ocultar Trap"
             setDefaultValue(false)
         }
 
-        fun addSubs() {
-            screen.addPreference(ecchiPref)
-            screen.addPreference(glPref)
-            screen.addPreference(blPref)
-            screen.addPreference(haremPref)
-            screen.addPreference(trapPref)
-        }
+        screen.addPreference(nsfwGeneral)
+        screen.addPreference(ecchi)
+        screen.addPreference(gl)
+        screen.addPreference(bl)
+        screen.addPreference(harem)
+        screen.addPreference(trap)
 
-        fun removeSubs() {
-            screen.removePreferenceRecursively(NSFW_ECCHI)
-            screen.removePreferenceRecursively(NSFW_GIRLS_LOVE)
-            screen.removePreferenceRecursively(NSFW_BOYS_LOVE)
-            screen.removePreferenceRecursively(NSFW_HAREM)
-            screen.removePreferenceRecursively(NSFW_TRAP)
+        fun updateState(enabled: Boolean) {
+            ecchi.isEnabled = enabled
+            gl.isEnabled = enabled
+            bl.isEnabled = enabled
+            harem.isEnabled = enabled
+            trap.isEnabled = enabled
         }
 
         // Estado inicial
-        val hideAll = preferences.getBoolean(SFW_GENERAL, false)
-        if (hideAll) removeSubs() else addSubs()
+        val all = preferences.getBoolean(SFW_GENERAL, false)
+        updateState(!all)
 
-        // Listener
-        nsfwGeneralPref.setOnPreferenceChangeListener { _, newValue ->
-            if (newValue as Boolean) {
-                removeSubs()
-            } else {
-                addSubs()
-            }
+        nsfwGeneral.setOnPreferenceChangeListener { _, newValue ->
+            updateState(!(newValue as Boolean))
             true
         }
     }
