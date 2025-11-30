@@ -608,72 +608,70 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     private fun getSaveLastCFUrlPref(): Boolean = preferences.getBoolean(SAVE_LAST_CF_URL_PREF, SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val scanlatorPref = CheckBoxPreference(screen.context).apply {
-            key = SCANLATOR_PREF
-            title = SCANLATOR_PREF_TITLE
-            summary = SCANLATOR_PREF_SUMMARY
-            setDefaultValue(SCANLATOR_PREF_DEFAULT_VALUE)
-        }
-
-        val saveLastCFUrlPreference = CheckBoxPreference(screen.context).apply {
-            key = SAVE_LAST_CF_URL_PREF
-            title = SAVE_LAST_CF_URL_PREF_TITLE
-            summary = SAVE_LAST_CF_URL_PREF_SUMMARY
-            setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
-        }
-
-        screen.addPreference(scanlatorPref)
-        screen.addPreference(saveLastCFUrlPreference)
+        val ctx = screen.context
 
         // --- Opción general NSFW ---
-        val nsfwGeneralPref = CheckBoxPreference(screen.context).apply {
+        val nsfwGeneralPref = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
             summary = "Bloquea automáticamente Ecchi, Girls Love, Boys Love, Harem y Trap"
             setDefaultValue(false)
         }
-        screen.addPreference(nsfwGeneralPref)
 
         // --- Subopciones ---
-        screen.addPreference(
-            CheckBoxPreference(screen.context).apply {
-                key = NSFW_ECCHI
-                title = "Ocultar Ecchi"
-                setDefaultValue(false)
-            },
-        )
+        val ecchiPref = CheckBoxPreference(ctx).apply {
+            key = NSFW_ECCHI
+            title = "Ocultar Ecchi"
+            setDefaultValue(false)
+        }
+        val glPref = CheckBoxPreference(ctx).apply {
+            key = NSFW_GIRLS_LOVE
+            title = "Ocultar Girls Love"
+            setDefaultValue(false)
+        }
+        val blPref = CheckBoxPreference(ctx).apply {
+            key = NSFW_BOYS_LOVE
+            title = "Ocultar Boys Love"
+            setDefaultValue(false)
+        }
+        val haremPref = CheckBoxPreference(ctx).apply {
+            key = NSFW_HAREM
+            title = "Ocultar Harem"
+            setDefaultValue(false)
+        }
+        val trapPref = CheckBoxPreference(ctx).apply {
+            key = NSFW_TRAP
+            title = "Ocultar Trap"
+            setDefaultValue(false)
+        }
 
-        screen.addPreference(
-            CheckBoxPreference(screen.context).apply {
-                key = NSFW_GIRLS_LOVE
-                title = "Ocultar Girls Love"
-                setDefaultValue(false)
-            },
-        )
+        // Agregar primero la opción general
+        screen.addPreference(nsfwGeneralPref)
 
-        screen.addPreference(
-            CheckBoxPreference(screen.context).apply {
-                key = NSFW_BOYS_LOVE
-                title = "Ocultar Boys Love"
-                setDefaultValue(false)
-            },
-        )
+        // Luego las subopciones
+        screen.addPreference(ecchiPref)
+        screen.addPreference(glPref)
+        screen.addPreference(blPref)
+        screen.addPreference(haremPref)
+        screen.addPreference(trapPref)
 
-        screen.addPreference(
-            CheckBoxPreference(screen.context).apply {
-                key = NSFW_HAREM
-                title = "Ocultar Harem"
-                setDefaultValue(false)
-            },
-        )
+        // --- Control de visibilidad dinámico ---
+        fun refreshVisibility(allEnabled: Boolean) {
+            ecchiPref.isVisible = !allEnabled
+            glPref.isVisible = !allEnabled
+            blPref.isVisible = !allEnabled
+            haremPref.isVisible = !allEnabled
+            trapPref.isVisible = !allEnabled
+        }
 
-        screen.addPreference(
-            CheckBoxPreference(screen.context).apply {
-                key = NSFW_TRAP
-                title = "Ocultar Trap"
-                setDefaultValue(false)
-            },
-        )
+        // Estado inicial:
+        refreshVisibility(preferences.getBoolean(SFW_GENERAL, false))
+
+        // Cuando cambia “Ocultar todo”
+        nsfwGeneralPref.setOnPreferenceChangeListener { _, newValue ->
+            refreshVisibility(newValue as Boolean)
+            true
+        }
     }
 
     private fun getSfwGeneral(): Boolean =
