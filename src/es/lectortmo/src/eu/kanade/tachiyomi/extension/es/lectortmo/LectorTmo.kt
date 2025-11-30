@@ -116,7 +116,13 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
         val params = hidden.joinToString("") { "&exclude_genders[]=$it" }
 
-        return "$params&erotic=false"
+        val addErotic = getSfwGeneral() || getNsfwEcchi()
+
+        return if (addErotic) {
+            "$params&erotic=false"
+        } else {
+            params
+        }
     }
 
     override fun fetchPopularManga(page: Int): Observable<MangasPage> {
