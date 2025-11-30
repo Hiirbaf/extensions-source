@@ -617,6 +617,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             summary = "Bloquea automáticamente Ecchi, Girls Love, Boys Love, Harem y Trap"
             setDefaultValue(false)
         }
+        screen.addPreference(nsfwGeneralPref)
 
         // --- Subopciones ---
         val ecchiPref = CheckBoxPreference(ctx).apply {
@@ -645,31 +646,35 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             setDefaultValue(false)
         }
 
-        // Agregar primero la opción general
-        screen.addPreference(nsfwGeneralPref)
-
-        // Luego las subopciones
-        screen.addPreference(ecchiPref)
-        screen.addPreference(glPref)
-        screen.addPreference(blPref)
-        screen.addPreference(haremPref)
-        screen.addPreference(trapPref)
-
-        // --- Control de visibilidad dinámico ---
-        fun refreshVisibility(allEnabled: Boolean) {
-            ecchiPref.isVisible = !allEnabled
-            glPref.isVisible = !allEnabled
-            blPref.isVisible = !allEnabled
-            haremPref.isVisible = !allEnabled
-            trapPref.isVisible = !allEnabled
+        // Función para añadir todos
+        fun addSubs() {
+            screen.addPreference(ecchiPref)
+            screen.addPreference(glPref)
+            screen.addPreference(blPref)
+            screen.addPreference(haremPref)
+            screen.addPreference(trapPref)
         }
 
-        // Estado inicial:
-        refreshVisibility(preferences.getBoolean(SFW_GENERAL, false))
+        // Función para remover todos
+        fun removeSubs() {
+            screen.removePreference(ecchiPref)
+            screen.removePreference(glPref)
+            screen.removePreference(blPref)
+            screen.removePreference(haremPref)
+            screen.removePreference(trapPref)
+        }
 
-        // Cuando cambia “Ocultar todo”
+        // Estado inicial
+        val hideAll = preferences.getBoolean(SFW_GENERAL, false)
+        if (hideAll) removeSubs() else addSubs()
+
+        // Listener
         nsfwGeneralPref.setOnPreferenceChangeListener { _, newValue ->
-            refreshVisibility(newValue as Boolean)
+            if (newValue as Boolean) {
+                removeSubs()
+            } else {
+                addSubs()
+            }
             true
         }
     }
