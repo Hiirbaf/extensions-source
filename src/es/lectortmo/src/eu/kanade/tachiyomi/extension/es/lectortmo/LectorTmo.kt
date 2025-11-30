@@ -610,7 +610,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        // --- Opción general NSFW ---
+        // --- Opción general ---
         val nsfwGeneralPref = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
@@ -625,28 +625,31 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             title = "Ocultar Ecchi"
             setDefaultValue(false)
         }
+
         val glPref = CheckBoxPreference(ctx).apply {
             key = NSFW_GIRLS_LOVE
             title = "Ocultar Girls Love"
             setDefaultValue(false)
         }
+
         val blPref = CheckBoxPreference(ctx).apply {
             key = NSFW_BOYS_LOVE
             title = "Ocultar Boys Love"
             setDefaultValue(false)
         }
+
         val haremPref = CheckBoxPreference(ctx).apply {
             key = NSFW_HAREM
             title = "Ocultar Harem"
             setDefaultValue(false)
         }
+
         val trapPref = CheckBoxPreference(ctx).apply {
             key = NSFW_TRAP
             title = "Ocultar Trap"
             setDefaultValue(false)
         }
 
-        // Función para añadir todos
         fun addSubs() {
             screen.addPreference(ecchiPref)
             screen.addPreference(glPref)
@@ -655,13 +658,12 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             screen.addPreference(trapPref)
         }
 
-        // Función para remover todos
         fun removeSubs() {
-            screen.removePreference(ecchiPref)
-            screen.removePreference(glPref)
-            screen.removePreference(blPref)
-            screen.removePreference(haremPref)
-            screen.removePreference(trapPref)
+            screen.removePreferenceRecursively(NSFW_ECCHI)
+            screen.removePreferenceRecursively(NSFW_GIRLS_LOVE)
+            screen.removePreferenceRecursively(NSFW_BOYS_LOVE)
+            screen.removePreferenceRecursively(NSFW_HAREM)
+            screen.removePreferenceRecursively(NSFW_TRAP)
         }
 
         // Estado inicial
