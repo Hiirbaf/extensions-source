@@ -18,6 +18,8 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferencesLazy
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
@@ -709,7 +711,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         )
 
         preferences.edit()
-            .putString(NSFW_STATE_CACHE, Json.encodeToString<NsfwState>(state))
+            .putString(NSFW_STATE_CACHE, Json.encodeToString(state))
             .apply()
     }
 
