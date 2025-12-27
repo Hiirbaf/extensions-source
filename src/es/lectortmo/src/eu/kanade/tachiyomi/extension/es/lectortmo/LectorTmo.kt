@@ -654,20 +654,32 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         screen.addPreference(harem)
         screen.addPreference(trap)
 
-        fun updateState(enabled: Boolean) {
+        // ---- LÓGICA CENTRAL ----
+        fun updateState(allSfwEnabled: Boolean) {
+            val enabled = !allSfwEnabled
+
             ecchi.isEnabled = enabled
             gl.isEnabled = enabled
             bl.isEnabled = enabled
             harem.isEnabled = enabled
             trap.isEnabled = enabled
+
+            // Limpia estados inconsistentes
+            if (allSfwEnabled) {
+                ecchi.isChecked = false
+                gl.isChecked = false
+                bl.isChecked = false
+                harem.isChecked = false
+                trap.isChecked = false
+            }
         }
 
-        // Estado inicial
-        val all = preferences.getBoolean(SFW_GENERAL, false)
-        updateState(!all)
+        // Estado inicial al abrir la pantalla
+        updateState(preferences.getBoolean(SFW_GENERAL, false))
 
+        // Listener del checkbox principal
         nsfwGeneral.setOnPreferenceChangeListener { _, newValue ->
-            updateState(!(newValue as Boolean))
+            updateState(newValue as Boolean)
             true
         }
     }
