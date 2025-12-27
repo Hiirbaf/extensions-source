@@ -710,6 +710,12 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             .putBoolean(NSFW_BOYS_LOVE, preferences.getBoolean("${NSFW_STATE_CACHE}_bl", false))
             .putBoolean(NSFW_HAREM, preferences.getBoolean("${NSFW_STATE_CACHE}_harem", false))
             .putBoolean(NSFW_TRAP, preferences.getBoolean("${NSFW_STATE_CACHE}_trap", false))
+            // Limpieza
+            .remove("${NSFW_STATE_CACHE}_ecchi")
+            .remove("${NSFW_STATE_CACHE}_gl")
+            .remove("${NSFW_STATE_CACHE}_bl")
+            .remove("${NSFW_STATE_CACHE}_harem")
+            .remove("${NSFW_STATE_CACHE}_trap")
             .apply()
     }
 
