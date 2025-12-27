@@ -47,7 +47,6 @@ data class NsfwState(
     val harem: Boolean,
     val trap: Boolean,
 )
-
 class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
     override val id = 4146344224513899730
@@ -111,7 +110,8 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     }
 
     // Marks erotic content as false and excludes: Ecchi(6), GirlsLove(17), BoysLove(18), Harem(19), Trap(94) genders
-    private fun getSfwUrlPart(): String {
+    private fun getSFWUrlPart(): String {
+
         val hidden = mutableListOf<String>()
 
         if (getSfwGeneral()) {
@@ -146,7 +146,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             }
     }
 
-    override fun popularMangaRequest(page: Int) = GET("$baseUrl/library?order_item=likes_count&order_dir=desc&filter_by=title${getSfwUrlPart()}&_pg=1&page=$page", tmoHeaders)
+    override fun popularMangaRequest(page: Int) = GET("$baseUrl/library?order_item=likes_count&order_dir=desc&filter_by=title${getSFWUrlPart()}&_pg=1&page=$page", tmoHeaders)
 
     override fun popularMangaNextPageSelector() = "a[rel='next']"
 
@@ -168,7 +168,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             }
     }
 
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/library?order_item=creation&order_dir=desc&filter_by=title${getSfwUrlPart()}&_pg=1&page=$page", tmoHeaders)
+    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/library?order_item=creation&order_dir=desc&filter_by=title${getSFWUrlPart()}&_pg=1&page=$page", tmoHeaders)
 
     override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
 
@@ -201,10 +201,8 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/library".toHttpUrl().newBuilder()
         url.addQueryParameter("title", query)
-        // Nuevo sistema NSFW
         val nsfwPart = getSfwUrlPart()
         if (nsfwPart.isNotEmpty()) {
-            // Dividir los parámetros para agregarlos correctamente al builder
             nsfwPart.split("&")
                 .filter { it.isNotBlank() }
                 .forEach { param ->
@@ -691,16 +689,27 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             }
         }
 
-        // Estado inicial al abrir la pantalla
         updateState(isSfwEnabled())
 
-        // Listener del checkbox principal
         nsfwGeneral.setOnPreferenceChangeListener { _, newValue ->
             updateState(newValue as Boolean)
             true
-        }
-    }
 
+        val scanlatorPref = CheckBoxPreference(screen.context).apply {
+            key = SCANLATOR_PREF
+            title = SCANLATOR_PREF_TITLE
+            summary = SCANLATOR_PREF_SUMMARY
+            setDefaultValue(SCANLATOR_PREF_DEFAULT_VALUE)
+        }
+
+        val saveLastCFUrlPreference = CheckBoxPreference(screen.context).apply {
+            key = SAVE_LAST_CF_URL_PREF
+            title = SAVE_LAST_CF_URL_PREF_TITLE
+            summary = SAVE_LAST_CF_URL_PREF_SUMMARY
+            setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
+        }
+
+    }
     private fun cacheNsfwState() {
         val state = NsfwState(
             ecchi = getNsfwEcchi(),
@@ -709,10 +718,13 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             harem = getNsfwHarem(),
             trap = getNsfwTrap(),
         )
-
         preferences.edit()
             .putString(NSFW_STATE_CACHE, Json.encodeToString(state))
             .apply()
+            
+        screen.addPreference(sfwModePref)
+        screen.addPreference(scanlatorPref)
+        screen.addPreference(saveLastCFUrlPreference)
     }
 
     private fun restoreNsfwState() {
