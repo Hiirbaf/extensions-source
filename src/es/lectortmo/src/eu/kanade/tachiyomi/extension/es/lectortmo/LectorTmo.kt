@@ -658,13 +658,12 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
-            ecchi.isEnabled = enabled
-            gl.isEnabled = enabled
-            bl.isEnabled = enabled
-            harem.isEnabled = enabled
-            trap.isEnabled = enabled
+            ecchi.setEnabled(enabled)
+            gl.setEnabled(enabled)
+            bl.setEnabled(enabled)
+            harem.setEnabled(enabled)
+            trap.setEnabled(enabled)
 
-            // Limpia estados inconsistentes
             if (allSfwEnabled) {
                 ecchi.isChecked = false
                 gl.isChecked = false
