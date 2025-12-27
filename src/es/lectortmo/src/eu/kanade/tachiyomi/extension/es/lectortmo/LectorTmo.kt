@@ -665,11 +665,21 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             trap.setEnabled(enabled)
 
             if (allSfwEnabled) {
+                cacheNsfwState()
+
                 ecchi.isChecked = false
                 gl.isChecked = false
                 bl.isChecked = false
                 harem.isChecked = false
                 trap.isChecked = false
+            } else {
+                restoreNsfwState()
+
+                ecchi.isChecked = getNsfwEcchi()
+                gl.isChecked = getNsfwGirlsLove()
+                bl.isChecked = getNsfwBoysLove()
+                harem.isChecked = getNsfwHarem()
+                trap.isChecked = getNsfwTrap()
             }
         }
 
@@ -681,6 +691,26 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             updateState(newValue as Boolean)
             true
         }
+    }
+
+    private fun cacheNsfwState() {
+        preferences.edit()
+            .putBoolean("${NSFW_STATE_CACHE}_ecchi", getNsfwEcchi())
+            .putBoolean("${NSFW_STATE_CACHE}_gl", getNsfwGirlsLove())
+            .putBoolean("${NSFW_STATE_CACHE}_bl", getNsfwBoysLove())
+            .putBoolean("${NSFW_STATE_CACHE}_harem", getNsfwHarem())
+            .putBoolean("${NSFW_STATE_CACHE}_trap", getNsfwTrap())
+            .apply()
+    }
+
+    private fun restoreNsfwState() {
+        preferences.edit()
+            .putBoolean(NSFW_ECCHI, preferences.getBoolean("${NSFW_STATE_CACHE}_ecchi", false))
+            .putBoolean(NSFW_GIRLS_LOVE, preferences.getBoolean("${NSFW_STATE_CACHE}_gl", false))
+            .putBoolean(NSFW_BOYS_LOVE, preferences.getBoolean("${NSFW_STATE_CACHE}_bl", false))
+            .putBoolean(NSFW_HAREM, preferences.getBoolean("${NSFW_STATE_CACHE}_harem", false))
+            .putBoolean(NSFW_TRAP, preferences.getBoolean("${NSFW_STATE_CACHE}_trap", false))
+            .apply()
     }
 
     private fun getSfwGeneral(): Boolean =
@@ -718,6 +748,8 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         private const val NSFW_BOYS_LOVE = "pref_nsfw_boys_love"
         private const val NSFW_HAREM = "pref_nsfw_harem"
         private const val NSFW_TRAP = "pref_nsfw_trap"
+
+        private const val NSFW_STATE_CACHE = "pref_nsfw_state_cache"
 
         private const val SAVE_LAST_CF_URL_PREF = "saveLastCFUrlPreference"
         private const val SAVE_LAST_CF_URL_PREF_TITLE = "Guardar la última URL con error de Cloudflare"
