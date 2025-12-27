@@ -709,7 +709,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         )
 
         preferences.edit()
-            .putString(NSFW_STATE_CACHE, Json.encodeToString(state))
+            .putString(NSFW_STATE_CACHE, Json.encodeToString<NsfwState>(state))
             .apply()
     }
 
