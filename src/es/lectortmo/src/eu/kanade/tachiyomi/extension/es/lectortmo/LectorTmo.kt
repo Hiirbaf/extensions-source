@@ -34,6 +34,17 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+@Serializable
+data class NsfwState(
+    val ecchi: Boolean,
+    val girlsLove: Boolean,
+    val boysLove: Boolean,
+    val harem: Boolean,
+    val trap: Boolean,
+)
 
 class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
@@ -666,25 +677,20 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
             if (allSfwEnabled) {
                 cacheNsfwState()
-
-                ecchi.isChecked = false
-                gl.isChecked = false
-                bl.isChecked = false
-                harem.isChecked = false
-                trap.isChecked = false
+                preferences.edit()
+                    .putBoolean(NSFW_ECCHI, false)
+                    .putBoolean(NSFW_GIRLS_LOVE, false)
+                    .putBoolean(NSFW_BOYS_LOVE, false)
+                    .putBoolean(NSFW_HAREM, false)
+                    .putBoolean(NSFW_TRAP, false)
+                    .apply()
             } else {
                 restoreNsfwState()
-
-                ecchi.isChecked = getNsfwEcchi()
-                gl.isChecked = getNsfwGirlsLove()
-                bl.isChecked = getNsfwBoysLove()
-                harem.isChecked = getNsfwHarem()
-                trap.isChecked = getNsfwTrap()
             }
         }
 
         // Estado inicial al abrir la pantalla
-        updateState(preferences.getBoolean(SFW_GENERAL, false))
+        updateState(isSfwEnabled())
 
         // Listener del checkbox principal
         nsfwGeneral.setOnPreferenceChangeListener { _, newValue ->
@@ -694,30 +700,37 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     }
 
     private fun cacheNsfwState() {
+        val state = NsfwState(
+            ecchi = getNsfwEcchi(),
+            girlsLove = getNsfwGirlsLove(),
+            boysLove = getNsfwBoysLove(),
+            harem = getNsfwHarem(),
+            trap = getNsfwTrap(),
+        )
+
         preferences.edit()
-            .putBoolean("${NSFW_STATE_CACHE}_ecchi", getNsfwEcchi())
-            .putBoolean("${NSFW_STATE_CACHE}_gl", getNsfwGirlsLove())
-            .putBoolean("${NSFW_STATE_CACHE}_bl", getNsfwBoysLove())
-            .putBoolean("${NSFW_STATE_CACHE}_harem", getNsfwHarem())
-            .putBoolean("${NSFW_STATE_CACHE}_trap", getNsfwTrap())
+            .putString(NSFW_STATE_CACHE, Json.encodeToString(state))
             .apply()
     }
 
     private fun restoreNsfwState() {
+        val json = preferences.getString(NSFW_STATE_CACHE, null) ?: return
+        val state = runCatching {
+            Json.decodeFromString<NsfwState>(json)
+        }.getOrNull() ?: return
+
         preferences.edit()
-            .putBoolean(NSFW_ECCHI, preferences.getBoolean("${NSFW_STATE_CACHE}_ecchi", false))
-            .putBoolean(NSFW_GIRLS_LOVE, preferences.getBoolean("${NSFW_STATE_CACHE}_gl", false))
-            .putBoolean(NSFW_BOYS_LOVE, preferences.getBoolean("${NSFW_STATE_CACHE}_bl", false))
-            .putBoolean(NSFW_HAREM, preferences.getBoolean("${NSFW_STATE_CACHE}_harem", false))
-            .putBoolean(NSFW_TRAP, preferences.getBoolean("${NSFW_STATE_CACHE}_trap", false))
-            // Limpieza
-            .remove("${NSFW_STATE_CACHE}_ecchi")
-            .remove("${NSFW_STATE_CACHE}_gl")
-            .remove("${NSFW_STATE_CACHE}_bl")
-            .remove("${NSFW_STATE_CACHE}_harem")
-            .remove("${NSFW_STATE_CACHE}_trap")
+            .putBoolean(NSFW_ECCHI, state.ecchi)
+            .putBoolean(NSFW_GIRLS_LOVE, state.girlsLove)
+            .putBoolean(NSFW_BOYS_LOVE, state.boysLove)
+            .putBoolean(NSFW_HAREM, state.harem)
+            .putBoolean(NSFW_TRAP, state.trap)
+            .remove(NSFW_STATE_CACHE)
             .apply()
     }
+
+    private fun isSfwEnabled(): Boolean =
+        getSfwUrlPart().isNotEmpty()
 
     private fun getSfwGeneral(): Boolean =
         preferences.getBoolean(SFW_GENERAL, false)
