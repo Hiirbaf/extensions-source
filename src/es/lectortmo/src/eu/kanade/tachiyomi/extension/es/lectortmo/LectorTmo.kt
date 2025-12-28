@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.extension.es.lectortmo
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.preference.CheckBoxPreference
-import android.preference.Preference
 import android.preference.PreferenceCategory
 import android.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
