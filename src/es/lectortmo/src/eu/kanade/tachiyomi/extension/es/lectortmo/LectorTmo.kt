@@ -625,7 +625,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             title = "Filtros de contenido NSFW"
             isEnabled = true
         }
-        
+
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
