@@ -624,7 +624,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             title = ""
             summary = "──────────────"
             setEnabled(false)
-            setSelectable(false)
         }
 
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
