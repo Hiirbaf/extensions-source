@@ -623,37 +623,37 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
-            summary = "Bloquea automáticamente Ecchi, Girls Love, Boys Love, Harem y Trap"
+            summary = "Bloquea automáticamente Ecchi, GL, BL, Harem y Trap"
             setDefaultValue(false)
         }
 
         val ecchi = CheckBoxPreference(ctx).apply {
             key = NSFW_ECCHI
-            title = "Ocultar Ecchi"
+            title = "    • Ocultar Ecchi"
             setDefaultValue(false)
         }
 
         val gl = CheckBoxPreference(ctx).apply {
             key = NSFW_GIRLS_LOVE
-            title = "Ocultar Girls Love"
+            title = "    • Ocultar Girls Love"
             setDefaultValue(false)
         }
 
         val bl = CheckBoxPreference(ctx).apply {
             key = NSFW_BOYS_LOVE
-            title = "Ocultar Boys Love"
+            title = "    • Ocultar Boys Love"
             setDefaultValue(false)
         }
 
         val harem = CheckBoxPreference(ctx).apply {
             key = NSFW_HAREM
-            title = "Ocultar Harem"
+            title = "    • Ocultar Harem"
             setDefaultValue(false)
         }
 
         val trap = CheckBoxPreference(ctx).apply {
             key = NSFW_TRAP
-            title = "Ocultar Trap"
+            title = "    • Ocultar Trap"
             setDefaultValue(false)
         }
 
