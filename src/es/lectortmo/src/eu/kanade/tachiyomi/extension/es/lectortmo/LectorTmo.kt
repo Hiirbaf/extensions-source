@@ -673,7 +673,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             harem.setEnabled(enabled)
             trap.setEnabled(enabled)
 
-            if (allSfwEnabled) {
+            if (allSfwEnabled && preferences.getString(NSFW_STATE_CACHE, null) == null) {
                 cacheNsfwState()
                 preferences.edit()
                     .putBoolean(NSFW_ECCHI, false)
@@ -742,7 +742,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     }
 
     private fun isSfwEnabled(): Boolean =
-        getSFWUrlPart().isNotEmpty()
+        getSfwGeneral()
 
     private fun getSfwGeneral(): Boolean =
         preferences.getBoolean(SFW_GENERAL, false)
