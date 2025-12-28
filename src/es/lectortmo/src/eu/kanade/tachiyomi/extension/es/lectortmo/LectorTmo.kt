@@ -623,8 +623,8 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         val divider = CheckBoxPreference(ctx).apply {
             title = ""
             summary = "──────────────"
-            isEnabled = false
-            isSelectable = false
+            setEnabled(false)
+            setSelectable(false)
         }
 
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
