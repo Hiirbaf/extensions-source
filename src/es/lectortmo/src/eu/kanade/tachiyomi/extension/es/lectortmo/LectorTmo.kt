@@ -665,7 +665,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         screen.addPreference(harem)
         screen.addPreference(trap)
 
-        // ---- LÓGICA CENTRAL ----
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
@@ -696,7 +695,24 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             true
         }
 
+        val scanlatorPref = CheckBoxPreference(ctx).apply {
+            key = SCANLATOR_PREF
+            title = SCANLATOR_PREF_TITLE
+            summary = SCANLATOR_PREF_SUMMARY
+            setDefaultValue(SCANLATOR_PREF_DEFAULT_VALUE)
+        }
+
+        val saveLastCFUrlPreference = CheckBoxPreference(ctx).apply {
+            key = SAVE_LAST_CF_URL_PREF
+            title = SAVE_LAST_CF_URL_PREF_TITLE
+            summary = SAVE_LAST_CF_URL_PREF_SUMMARY
+            setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
+        }
+
+        screen.addPreference(scanlatorPref)
+        screen.addPreference(saveLastCFUrlPreference)
     }
+
     private fun cacheNsfwState() {
         val state = NsfwState(
             ecchi = getNsfwEcchi(),
@@ -709,23 +725,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             .putString(NSFW_STATE_CACHE, Json.encodeToString(state))
             .apply()
     }
-
-    val scanlatorPref = CheckBoxPreference(screen.context).apply {
-            key = SCANLATOR_PREF
-            title = SCANLATOR_PREF_TITLE
-            summary = SCANLATOR_PREF_SUMMARY
-            setDefaultValue(SCANLATOR_PREF_DEFAULT_VALUE)
-    }
-
-    val saveLastCFUrlPreference = CheckBoxPreference(screen.context).apply {
-            key = SAVE_LAST_CF_URL_PREF
-            title = SAVE_LAST_CF_URL_PREF_TITLE
-            summary = SAVE_LAST_CF_URL_PREF_SUMMARY
-            setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
-    }
-
-    screen.addPreference(scanlatorPref)
-    screen.addPreference(saveLastCFUrlPreference)
 
     private fun restoreNsfwState() {
         val json = preferences.getString(NSFW_STATE_CACHE, null) ?: return
