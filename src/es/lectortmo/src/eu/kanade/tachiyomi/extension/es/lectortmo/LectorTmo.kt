@@ -200,7 +200,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/library".toHttpUrl().newBuilder()
         url.addQueryParameter("title", query)
-        val nsfwPart = getSfwUrlPart()
+        val nsfwPart = getSFWUrlPart()
         if (nsfwPart.isNotEmpty()) {
             nsfwPart.split("&")
                 .filter { it.isNotBlank() }
@@ -742,7 +742,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     }
 
     private fun isSfwEnabled(): Boolean =
-        getSfwUrlPart().isNotEmpty()
+        getSFWUrlPart().isNotEmpty()
 
     private fun getSfwGeneral(): Boolean =
         preferences.getBoolean(SFW_GENERAL, false)
