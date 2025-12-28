@@ -621,9 +621,9 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        val nsfwCategory = PreferenceCategory(ctx).apply {
-            title = "Filtros de contenido NSFW"
-            isEnabled = true
+        val generalCategory = PreferenceCategory(ctx).apply {
+            setTitle("General")
+            setEnabled(true)
         }
 
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
@@ -664,24 +664,18 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         }
 
         screen.addPreference(nsfwGeneral)
-        screen.addPreference(nsfwCategory)
+        screen.addPreference(generalCategory)
 
-        nsfwCategory.addPreference(ecchi)
-        nsfwCategory.addPreference(gl)
-        nsfwCategory.addPreference(bl)
-        nsfwCategory.addPreference(harem)
-        nsfwCategory.addPreference(trap)
+        generalCategory.addPreference(ecchi)
+        generalCategory.addPreference(gl)
+        generalCategory.addPreference(bl)
+        generalCategory.addPreference(harem)
+        generalCategory.addPreference(trap)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
-            nsfwCategory.isEnabled = enabled
-
-            ecchi.isEnabled = enabled
-            gl.isEnabled = enabled
-            bl.isEnabled = enabled
-            harem.isEnabled = enabled
-            trap.isEnabled = enabled
+            generalCategory.setEnabled(enabled)
 
             if (allSfwEnabled) {
                 cacheNsfwState()
