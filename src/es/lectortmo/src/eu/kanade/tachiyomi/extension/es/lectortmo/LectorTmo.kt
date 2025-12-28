@@ -2,9 +2,8 @@ package eu.kanade.tachiyomi.extension.es.lectortmo
 
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
-import android.preference.CheckBoxPreference
-import android.preference.PreferenceCategory
-import android.preference.PreferenceScreen
+import androidx.preference.CheckBoxPreference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.asObservableSuccess
@@ -623,53 +622,47 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
-            setTitle("Ocultar todo el contenido NSFW")
+            title = "Ocultar todo el contenido NSFW"
             summary = "Bloquea automáticamente Ecchi, Girls Love, Boys Love, Harem y Trap"
             setDefaultValue(false)
         }
 
-        val nsfwCategory = PreferenceCategory(ctx).apply {
-            setTitle("Opciones NSFW")
-        }
-
         val ecchi = CheckBoxPreference(ctx).apply {
             key = NSFW_ECCHI
-            setTitle("Ocultar Ecchi")
+            title = "Ocultar Ecchi"
             setDefaultValue(false)
         }
 
         val gl = CheckBoxPreference(ctx).apply {
             key = NSFW_GIRLS_LOVE
-            setTitle("Ocultar Girls Love")
+            title = "Ocultar Girls Love"
             setDefaultValue(false)
         }
 
         val bl = CheckBoxPreference(ctx).apply {
             key = NSFW_BOYS_LOVE
-            setTitle("Ocultar Boys Love")
+            title = "Ocultar Boys Love"
             setDefaultValue(false)
         }
 
         val harem = CheckBoxPreference(ctx).apply {
             key = NSFW_HAREM
-            setTitle("Ocultar Harem")
+            title = "Ocultar Harem"
             setDefaultValue(false)
         }
 
         val trap = CheckBoxPreference(ctx).apply {
             key = NSFW_TRAP
-            setTitle("Ocultar Trap")
+            title = "Ocultar Trap"
             setDefaultValue(false)
         }
 
         screen.addPreference(nsfwGeneral)
-        screen.addPreference(nsfwCategory)
-
-        nsfwCategory.addPreference(ecchi)
-        nsfwCategory.addPreference(gl)
-        nsfwCategory.addPreference(bl)
-        nsfwCategory.addPreference(harem)
-        nsfwCategory.addPreference(trap)
+        screen.addPreference(ecchi)
+        screen.addPreference(gl)
+        screen.addPreference(bl)
+        screen.addPreference(harem)
+        screen.addPreference(trap)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
@@ -680,7 +673,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             harem.setEnabled(enabled)
             trap.setEnabled(enabled)
 
-            if (allSfwEnabled) {
+            if (allSfwEnabled && preferences.getString(NSFW_STATE_CACHE, null) == null) {
                 cacheNsfwState()
                 preferences.edit()
                     .putBoolean(NSFW_ECCHI, false)
@@ -694,7 +687,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             }
         }
 
-        updateState(getSfwGeneral())
+        updateState(isSfwEnabled())
 
         nsfwGeneral.setOnPreferenceChangeListener { _, newValue ->
             updateState(newValue as Boolean)
