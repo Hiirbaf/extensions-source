@@ -620,12 +620,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        val divider = CheckBoxPreference(ctx).apply {
-            title = ""
-            summary = "──────────────"
-            setEnabled(false)
-        }
-
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
@@ -662,15 +656,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             title = "    • Ocultar Trap"
             setDefaultValue(false)
         }
-
-        screen.addPreference(nsfwGeneral)
-        screen.addPreference(ecchi)
-        screen.addPreference(gl)
-        screen.addPreference(bl)
-        screen.addPreference(harem)
-        screen.addPreference(trap)
-
-        screen.addPreference(divider)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
@@ -716,6 +701,13 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
         }
 
+        screen.addPreference(nsfwGeneral)
+        screen.addPreference(ecchi)
+        screen.addPreference(gl)
+        screen.addPreference(bl)
+        screen.addPreference(harem)
+        screen.addPreference(trap)
+        
         screen.addPreference(scanlatorPref)
         screen.addPreference(saveLastCFUrlPreference)
     }
