@@ -621,17 +621,15 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        val generalHeader = Preference().apply {
-            title = "General"
-            summary = ""
-            setEnabled(false)
-        }
-
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
             summary = "Bloquea automáticamente Ecchi, Girls Love, Boys Love, Harem y Trap"
             setDefaultValue(false)
+        }
+
+        val nsfwCategory = PreferenceCategory(ctx).apply {
+            title = "Opciones NSFW"
         }
 
         val ecchi = CheckBoxPreference(ctx).apply {
@@ -665,13 +663,13 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         }
 
         screen.addPreference(nsfwGeneral)
-        screen.addPreference(generalHeader)
+        screen.addPreference(nsfwCategory)
 
-        screen.addPreference(ecchi)
-        screen.addPreference(gl)
-        screen.addPreference(bl)
-        screen.addPreference(harem)
-        screen.addPreference(trap)
+        nsfwCategory.addPreference(ecchi)
+        nsfwCategory.addPreference(gl)
+        nsfwCategory.addPreference(bl)
+        nsfwCategory.addPreference(harem)
+        nsfwCategory.addPreference(trap)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
