@@ -707,7 +707,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         screen.addPreference(bl)
         screen.addPreference(harem)
         screen.addPreference(trap)
-        
+
         screen.addPreference(scanlatorPref)
         screen.addPreference(saveLastCFUrlPreference)
     }
