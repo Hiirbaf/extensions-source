@@ -622,7 +622,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         key: String,
         title: String,
         summary: String? = null,
-        default: Boolean = false
+        default: Boolean = false,
     ) = CheckBoxPreference(ctx).apply {
         this.key = key
         this.title = title
@@ -639,7 +639,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             ctx,
             SFW_GENERAL,
             "Ocultar todo el contenido NSFW",
-            "Bloquea automáticamente Ecchi, GL, BL, Harem y Trap"
+            "Bloquea automáticamente Ecchi, GL, BL, Harem y Trap",
         )
 
         val ecchi = checkBox(ctx, NSFW_ECCHI, "    • Ocultar Ecchi")
@@ -683,7 +683,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             SCANLATOR_PREF,
             SCANLATOR_PREF_TITLE,
             SCANLATOR_PREF_SUMMARY,
-            SCANLATOR_PREF_DEFAULT_VALUE
+            SCANLATOR_PREF_DEFAULT_VALUE,
         )
 
         val saveLastCFUrlPreference = checkBox(
@@ -691,7 +691,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             SAVE_LAST_CF_URL_PREF,
             SAVE_LAST_CF_URL_PREF_TITLE,
             SAVE_LAST_CF_URL_PREF_SUMMARY,
-            SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE
+            SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE,
         )
 
         // ===== AÑADIR A LA PANTALLA =====
