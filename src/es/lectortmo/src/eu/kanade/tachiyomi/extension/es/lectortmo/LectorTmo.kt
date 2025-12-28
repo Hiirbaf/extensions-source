@@ -620,6 +620,13 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
+        val divider = CheckBoxPreference(ctx).apply {
+            title = ""
+            summary = "──────────────"
+            isEnabled = false
+            isSelectable = false
+        }
+
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
@@ -663,6 +670,8 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         screen.addPreference(bl)
         screen.addPreference(harem)
         screen.addPreference(trap)
+
+        screen.addPreference(divider)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
