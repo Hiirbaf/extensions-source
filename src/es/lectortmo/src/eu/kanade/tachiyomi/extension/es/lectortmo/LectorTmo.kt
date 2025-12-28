@@ -621,10 +621,10 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        val generalHeader = Preference(ctx).apply {
+        val generalHeader = Preference().apply {
             title = "General"
-            isSelectable = false
-            isPersistent = false
+            summary = ""
+            setEnabled(false)
         }
 
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
