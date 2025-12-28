@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.extension.es.lectortmo
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import androidx.preference.CheckBoxPreference
+import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -620,6 +621,11 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
+        val nsfwCategory = PreferenceCategory(ctx).apply {
+            title = "Filtros de contenido NSFW"
+            isEnabled = true
+        }
+        
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
             key = SFW_GENERAL
             title = "Ocultar todo el contenido NSFW"
@@ -658,22 +664,26 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         }
 
         screen.addPreference(nsfwGeneral)
-        screen.addPreference(ecchi)
-        screen.addPreference(gl)
-        screen.addPreference(bl)
-        screen.addPreference(harem)
-        screen.addPreference(trap)
+        screen.addPreference(nsfwCategory)
+
+        nsfwCategory.addPreference(ecchi)
+        nsfwCategory.addPreference(gl)
+        nsfwCategory.addPreference(bl)
+        nsfwCategory.addPreference(harem)
+        nsfwCategory.addPreference(trap)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
-            ecchi.setEnabled(enabled)
-            gl.setEnabled(enabled)
-            bl.setEnabled(enabled)
-            harem.setEnabled(enabled)
-            trap.setEnabled(enabled)
+            nsfwCategory.isEnabled = enabled
 
-            if (allSfwEnabled && preferences.getString(NSFW_STATE_CACHE, null) == null) {
+            ecchi.isEnabled = enabled
+            gl.isEnabled = enabled
+            bl.isEnabled = enabled
+            harem.isEnabled = enabled
+            trap.isEnabled = enabled
+
+            if (allSfwEnabled) {
                 cacheNsfwState()
                 preferences.edit()
                     .putBoolean(NSFW_ECCHI, false)
