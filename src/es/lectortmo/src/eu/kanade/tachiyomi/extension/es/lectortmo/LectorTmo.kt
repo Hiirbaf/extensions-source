@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension.es.lectortmo
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.CheckBoxPreference
 import androidx.preference.PreferenceScreen
@@ -653,7 +654,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
-            nsfwPrefs.forEach { it.isEnabled = enabled }
+            nsfwPrefs.forEach { it.setEnabled(enabled) }
 
             if (allSfwEnabled && preferences.getString(NSFW_STATE_CACHE, null) == null) {
                 cacheNsfwState()
