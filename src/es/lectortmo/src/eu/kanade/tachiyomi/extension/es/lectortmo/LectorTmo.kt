@@ -628,10 +628,9 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             setDefaultValue(false)
         }
 
-        val nsfwHeader = Preference().apply {
+        val nsfwHeader = Preference(ctx).apply {
             title = "Opciones NSFW"
-            summary = ""
-            setEnabled(false)
+            isSelectable = false
         }
 
         val ecchi = CheckBoxPreference(ctx).apply {
