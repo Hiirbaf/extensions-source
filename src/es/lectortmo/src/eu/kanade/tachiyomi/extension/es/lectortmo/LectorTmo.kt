@@ -617,54 +617,43 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
     private fun getSaveLastCFUrlPref(): Boolean = preferences.getBoolean(SAVE_LAST_CF_URL_PREF, SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
 
+    private fun checkBox(
+        ctx: Context,
+        key: String,
+        title: String,
+        summary: String? = null,
+        default: Boolean = false
+    ) = CheckBoxPreference(ctx).apply {
+        this.key = key
+        this.title = title
+        summary?.let { this.summary = it }
+        setDefaultValue(default)
+    }
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        val nsfwGeneral = CheckBoxPreference(ctx).apply {
-            key = SFW_GENERAL
-            title = "Ocultar todo el contenido NSFW"
-            summary = "Bloquea automáticamente Ecchi, GL, BL, Harem y Trap"
-            setDefaultValue(false)
-        }
+        // ===== NSFW GENERAL =====
 
-        val ecchi = CheckBoxPreference(ctx).apply {
-            key = NSFW_ECCHI
-            title = "    • Ocultar Ecchi"
-            setDefaultValue(false)
-        }
+        val nsfwGeneral = checkBox(
+            ctx,
+            SFW_GENERAL,
+            "Ocultar todo el contenido NSFW",
+            "Bloquea automáticamente Ecchi, GL, BL, Harem y Trap"
+        )
 
-        val gl = CheckBoxPreference(ctx).apply {
-            key = NSFW_GIRLS_LOVE
-            title = "    • Ocultar Girls Love"
-            setDefaultValue(false)
-        }
+        val ecchi = checkBox(ctx, NSFW_ECCHI, "    • Ocultar Ecchi")
+        val gl = checkBox(ctx, NSFW_GIRLS_LOVE, "    • Ocultar Girls Love")
+        val bl = checkBox(ctx, NSFW_BOYS_LOVE, "    • Ocultar Boys Love")
+        val harem = checkBox(ctx, NSFW_HAREM, "    • Ocultar Harem")
+        val trap = checkBox(ctx, NSFW_TRAP, "    • Ocultar Trap")
 
-        val bl = CheckBoxPreference(ctx).apply {
-            key = NSFW_BOYS_LOVE
-            title = "    • Ocultar Boys Love"
-            setDefaultValue(false)
-        }
-
-        val harem = CheckBoxPreference(ctx).apply {
-            key = NSFW_HAREM
-            title = "    • Ocultar Harem"
-            setDefaultValue(false)
-        }
-
-        val trap = CheckBoxPreference(ctx).apply {
-            key = NSFW_TRAP
-            title = "    • Ocultar Trap"
-            setDefaultValue(false)
-        }
+        val nsfwPrefs = listOf(ecchi, gl, bl, harem, trap)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
-            ecchi.setEnabled(enabled)
-            gl.setEnabled(enabled)
-            bl.setEnabled(enabled)
-            harem.setEnabled(enabled)
-            trap.setEnabled(enabled)
+            nsfwPrefs.forEach { it.isEnabled = enabled }
 
             if (allSfwEnabled && preferences.getString(NSFW_STATE_CACHE, null) == null) {
                 cacheNsfwState()
@@ -687,27 +676,28 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             true
         }
 
-        val scanlatorPref = CheckBoxPreference(ctx).apply {
-            key = SCANLATOR_PREF
-            title = SCANLATOR_PREF_TITLE
-            summary = SCANLATOR_PREF_SUMMARY
-            setDefaultValue(SCANLATOR_PREF_DEFAULT_VALUE)
-        }
+        // ===== OTRAS OPCIONES =====
 
-        val saveLastCFUrlPreference = CheckBoxPreference(ctx).apply {
-            key = SAVE_LAST_CF_URL_PREF
-            title = SAVE_LAST_CF_URL_PREF_TITLE
-            summary = SAVE_LAST_CF_URL_PREF_SUMMARY
-            setDefaultValue(SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE)
-        }
+        val scanlatorPref = checkBox(
+            ctx,
+            SCANLATOR_PREF,
+            SCANLATOR_PREF_TITLE,
+            SCANLATOR_PREF_SUMMARY,
+            SCANLATOR_PREF_DEFAULT_VALUE
+        )
+
+        val saveLastCFUrlPreference = checkBox(
+            ctx,
+            SAVE_LAST_CF_URL_PREF,
+            SAVE_LAST_CF_URL_PREF_TITLE,
+            SAVE_LAST_CF_URL_PREF_SUMMARY,
+            SAVE_LAST_CF_URL_PREF_DEFAULT_VALUE
+        )
+
+        // ===== AÑADIR A LA PANTALLA =====
 
         screen.addPreference(nsfwGeneral)
-        screen.addPreference(ecchi)
-        screen.addPreference(gl)
-        screen.addPreference(bl)
-        screen.addPreference(harem)
-        screen.addPreference(trap)
-
+        nsfwPrefs.forEach(screen::addPreference)
         screen.addPreference(scanlatorPref)
         screen.addPreference(saveLastCFUrlPreference)
     }
