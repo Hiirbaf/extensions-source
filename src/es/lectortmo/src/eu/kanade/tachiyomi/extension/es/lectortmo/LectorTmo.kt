@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.extension.es.lectortmo
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import androidx.preference.CheckBoxPreference
-import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -628,8 +627,10 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             setDefaultValue(false)
         }
 
-        val nsfwCategory = PreferenceCategory(ctx).apply {
+        val nsfwHeader = Preference().apply {
             title = "Opciones NSFW"
+            summary = ""
+            setEnabled(false)
         }
 
         val ecchi = CheckBoxPreference(ctx).apply {
@@ -663,22 +664,22 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         }
 
         screen.addPreference(nsfwGeneral)
-        screen.addPreference(nsfwCategory)
+        screen.addPreference(nsfwHeader)
 
-        nsfwCategory.addPreference(ecchi)
-        nsfwCategory.addPreference(gl)
-        nsfwCategory.addPreference(bl)
-        nsfwCategory.addPreference(harem)
-        nsfwCategory.addPreference(trap)
+        screen.addPreference(ecchi)
+        screen.addPreference(gl)
+        screen.addPreference(bl)
+        screen.addPreference(harem)
+        screen.addPreference(trap)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
-            ecchi.setEnabled(enabled)
-            gl.setEnabled(enabled)
-            bl.setEnabled(enabled)
-            harem.setEnabled(enabled)
-            trap.setEnabled(enabled)
+            ecchi.isEnabled = enabled
+            gl.isEnabled = enabled
+            bl.isEnabled = enabled
+            harem.isEnabled = enabled
+            trap.isEnabled = enabled
 
             if (allSfwEnabled) {
                 cacheNsfwState()
@@ -694,7 +695,7 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
             }
         }
 
-        updateState(isSfwEnabled())
+        updateState(getSfwGeneral())
 
         nsfwGeneral.setOnPreferenceChangeListener { _, newValue ->
             updateState(newValue as Boolean)
