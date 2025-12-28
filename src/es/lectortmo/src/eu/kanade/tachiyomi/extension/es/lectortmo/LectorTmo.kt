@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.extension.es.lectortmo
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import androidx.preference.CheckBoxPreference
-import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -621,9 +620,10 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val ctx = screen.context
 
-        val generalCategory = PreferenceCategory(ctx).apply {
-            setTitle("General")
-            setEnabled(true)
+        val generalHeader = Preference(ctx).apply {
+            title = "General"
+            isSelectable = false
+            isPersistent = false
         }
 
         val nsfwGeneral = CheckBoxPreference(ctx).apply {
@@ -664,18 +664,22 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
         }
 
         screen.addPreference(nsfwGeneral)
-        screen.addPreference(generalCategory)
+        screen.addPreference(generalHeader)
 
-        generalCategory.addPreference(ecchi)
-        generalCategory.addPreference(gl)
-        generalCategory.addPreference(bl)
-        generalCategory.addPreference(harem)
-        generalCategory.addPreference(trap)
+        screen.addPreference(ecchi)
+        screen.addPreference(gl)
+        screen.addPreference(bl)
+        screen.addPreference(harem)
+        screen.addPreference(trap)
 
         fun updateState(allSfwEnabled: Boolean) {
             val enabled = !allSfwEnabled
 
-            generalCategory.setEnabled(enabled)
+            ecchi.setEnabled(enabled)
+            gl.setEnabled(enabled)
+            bl.setEnabled(enabled)
+            harem.setEnabled(enabled)
+            trap.setEnabled(enabled)
 
             if (allSfwEnabled) {
                 cacheNsfwState()
