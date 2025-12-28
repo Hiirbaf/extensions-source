@@ -111,7 +111,6 @@ class LectorTmo : ParsedHttpSource(), ConfigurableSource {
 
     // Marks erotic content as false and excludes: Ecchi(6), GirlsLove(17), BoysLove(18), Harem(19), Trap(94) genders
     private fun getSFWUrlPart(): String {
-
         val hidden = mutableListOf<String>()
 
         if (getSfwGeneral()) {
