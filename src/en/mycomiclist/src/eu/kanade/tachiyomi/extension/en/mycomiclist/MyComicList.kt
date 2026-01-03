@@ -146,12 +146,10 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     private fun parseDate(text: String): Long {
         val normalized = text.trim()
 
-        // Today (sin hora exacta)
         if (normalized.equals("Today", ignoreCase = true)) {
             return System.currentTimeMillis()
         }
 
-        // dd-MMM-yyyy (ej: 22-Oct-2025)
         return try {
             val formatter = java.text.SimpleDateFormat("dd-MMM-yyyy", java.util.Locale.ENGLISH)
             formatter.parse(normalized)?.time ?: 0L
