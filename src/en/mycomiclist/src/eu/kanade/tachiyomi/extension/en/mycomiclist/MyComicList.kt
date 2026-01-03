@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.extension.en.mycomiclist
 
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
@@ -11,8 +10,10 @@ import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-class MyComicList : ParsedHttpSource(), ConfigurableSource {
+class MyComicList : ParsedHttpSource() {
 
     override val name = "MyComicList"
     override val baseUrl = "https://mycomiclist.org"
@@ -29,15 +30,14 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     override fun popularMangaFromElement(element: Element): SManga {
         val a = element.selectFirst("a")!!
-        val rawUrl = a.attr("href")
-        val url = fixUrl(rawUrl)
+        val url = fixUrl(a.attr("href"))
         val title = element.selectFirst("h3 a")?.text().orEmpty()
         val img = element.selectFirst("img.lazyload")?.attr("data-src")
 
         return SManga.create().apply {
             setUrlWithoutDomain(toRelative(url))
             this.title = title
-            thumbnail_url = img
+            thumbnail_url = img?.let { fixUrl(it) }
         }
     }
 
@@ -49,12 +49,12 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     override fun latestUpdatesRequest(page: Int): Request =
         GET("$baseUrl/hot-comic?page=$page", headers)
 
-    override fun latestUpdatesSelector(): String = "div.manga-box"
+    override fun latestUpdatesSelector(): String = popularMangaSelector()
 
     override fun latestUpdatesFromElement(element: Element): SManga =
         popularMangaFromElement(element)
 
-    override fun latestUpdatesNextPageSelector(): String = "a[rel=next]"
+    override fun latestUpdatesNextPageSelector(): String = popularMangaNextPageSelector()
 
     // -------------------------------------------------------------
     // Search
@@ -67,8 +67,15 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             when (f) {
                 is TagFilter -> selectedTag = f.selected
                 is StateFilter -> selectedStatus = f.state
-                else -> Unit
             }
+        }
+
+        // 🔴 Prioridad absoluta a búsqueda por texto
+        if (query.isNotBlank()) {
+            return GET(
+                "$baseUrl/comic-search?key=${query.trim()}&page=$page",
+                headers,
+            )
         }
 
         when (selectedStatus) {
@@ -80,28 +87,29 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             return GET("$baseUrl/${it.key}-comic?page=$page", headers)
         }
 
-        if (query.isNotBlank()) {
-            return GET("$baseUrl/comic-search?key=${query.trim()}&page=$page", headers)
-        }
-
         return popularMangaRequest(page)
     }
 
-    override fun searchMangaSelector(): String = "div.manga-box"
+    override fun searchMangaSelector(): String = popularMangaSelector()
 
     override fun searchMangaFromElement(element: Element): SManga =
         popularMangaFromElement(element)
 
-    override fun searchMangaNextPageSelector(): String = "a[rel=next]"
+    override fun searchMangaNextPageSelector(): String = popularMangaNextPageSelector()
 
     // -------------------------------------------------------------
     // Manga details
     // -------------------------------------------------------------
     override fun mangaDetailsParse(document: Document): SManga {
-        val realTitle = document.selectFirst("td:contains(Name:) + td strong")?.text()
-        val authorText = document.selectFirst("td:contains(Author:) + td")?.text()
-        val genres = document.select("td:contains(Genres:) + td a").map { it.text() }
-        val statusText = document.selectFirst("td:contains(Status:) + td a")?.text()?.lowercase()
+        val title =
+            document.selectFirst("td:contains(Name:) + td strong")?.text()
+                ?: document.selectFirst("h1")?.ownText().orEmpty()
+
+        val author = document.selectFirst("td:contains(Author:) + td")?.text()
+        val genres = document.select("td:contains(Genres:) + td a").joinToString(", ") { it.text() }
+
+        val statusText =
+            document.selectFirst("td:contains(Status:) + td a")?.text()?.lowercase()
 
         val status = when (statusText) {
             "ongoing" -> SManga.ONGOING
@@ -109,14 +117,15 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
             else -> SManga.UNKNOWN
         }
 
-        val desc = document.selectFirst("div.manga-desc p.pdesc")?.html()
+        val desc = document.selectFirst("div.manga-desc p.pdesc")?.text()
 
         return SManga.create().apply {
-            title = realTitle ?: document.selectFirst("h1")?.ownText().orEmpty()
+            this.title = title
             thumbnail_url = document.selectFirst("div.manga-cover img")?.attr("src")
-            author = authorText
-            artist = authorText
-            genre = genres.joinToString(", ")
+                ?.let { fixUrl(it) }
+            this.author = author
+            this.artist = author
+            genre = genres
             description = desc
             this.status = status
         }
@@ -129,30 +138,37 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
 
     override fun chapterFromElement(element: Element): SChapter {
         val a = element.selectFirst("a.ch-name")!!
-        val rawUrl = a.attr("href")
-        val url = fixUrl(rawUrl)
+        val url = fixUrl(a.attr("href"))
         val name = a.text()
 
-        val dateText = element.selectFirst("span")?.text()?.trim().orEmpty()
+        val dateText = element.selectFirst("span.date, span.time")?.text().orEmpty()
 
         return SChapter.create().apply {
             setUrlWithoutDomain(toRelative(url))
             this.name = name
-            chapter_number = name.substringAfter('#').toFloatOrNull() ?: 0f
+            chapter_number = extractChapterNumber(name)
             date_upload = parseDate(dateText)
         }
     }
 
-    private fun parseDate(text: String): Long {
-        val normalized = text.trim()
+    private fun extractChapterNumber(text: String): Float {
+        return Regex("""\d+(\.\d+)?""")
+            .find(text)
+            ?.value
+            ?.toFloat()
+            ?: -1f
+    }
 
-        if (normalized.equals("Today", ignoreCase = true)) {
+    private fun parseDate(text: String): Long {
+        if (text.equals("Today", ignoreCase = true)) {
             return System.currentTimeMillis()
         }
 
         return try {
-            val formatter = java.text.SimpleDateFormat("dd-MMM-yyyy", java.util.Locale.ENGLISH)
-            formatter.parse(normalized)?.time ?: 0L
+            SimpleDateFormat("dd-MMM-yyyy", Locale.ENGLISH)
+                .parse(text.trim())
+                ?.time
+                ?: 0L
         } catch (_: Exception) {
             0L
         }
@@ -162,12 +178,15 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // Pages
     // -------------------------------------------------------------
     override fun pageListRequest(chapter: SChapter): Request =
-        GET(baseUrl + chapter.url + "/all")
+        GET(baseUrl + chapter.url + "/all", headers)
 
     override fun pageListParse(document: Document): List<Page> =
-        document.select("img.chapter_img.lazyload").mapIndexedNotNull { index, img ->
-            img.attr("data-src").takeIf { it.isNotBlank() }?.let { Page(index, "", it) }
-        }
+        document.select("img.chapter_img.lazyload")
+            .mapIndexedNotNull { index, img ->
+                img.attr("data-src")
+                    .takeIf { it.isNotBlank() }
+                    ?.let { Page(index, "", fixUrl(it)) }
+            }
 
     override fun imageUrlParse(document: Document): String =
         throw UnsupportedOperationException("Not used")
@@ -175,12 +194,11 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // Filters
     // -------------------------------------------------------------
-    override fun getFilterList(): FilterList {
-        return FilterList(
+    override fun getFilterList(): FilterList =
+        FilterList(
             TagFilter(STATIC_TAGS),
             StateFilter(),
         )
-    }
 
     private val STATIC_TAGS = listOf(
         Tag("marvel", "Marvel"),
@@ -242,8 +260,10 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     class Tag(val key: String, val title: String)
 
     class TagFilter(private val tags: List<Tag>) :
-        Filter.Select<String>("Genre", arrayOf("Any") + tags.map { it.title }.toTypedArray()) {
-
+        Filter.Select<String>(
+            "Genre",
+            arrayOf("Any") + tags.map { it.title }.toTypedArray(),
+        ) {
         val selected: Tag?
             get() = if (state == 0) null else tags[state - 1]
     }
@@ -254,15 +274,9 @@ class MyComicList : ParsedHttpSource(), ConfigurableSource {
     // -------------------------------------------------------------
     // Utils
     // -------------------------------------------------------------
-    private fun toRelative(url: String): String {
-        val fixed = url.replace("https//", "https://").replace("http//", "http://")
-        return if (fixed.startsWith("http")) fixed.substringAfter(baseUrl) else fixed
-    }
+    private fun toRelative(url: String): String =
+        if (url.startsWith("http")) url.substringAfter(baseUrl) else url
 
-    private fun fixUrl(url: String): String {
-        val fixed = url.replaceFirst("https//", "https://").replaceFirst("http//", "http://")
-        return if (fixed.startsWith("http")) fixed else baseUrl + url
-    }
-
-    override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {}
+    private fun fixUrl(url: String): String =
+        if (url.startsWith("http")) url else baseUrl + url
 }
