@@ -71,7 +71,6 @@ class MyComicList : ParsedHttpSource() {
             }
         }
 
-        // 🔴 Prioridad absoluta a búsqueda por texto
         if (query.isNotBlank()) {
             return GET(
                 "$baseUrl/comic-search?key=${query.trim()}&page=$page",
