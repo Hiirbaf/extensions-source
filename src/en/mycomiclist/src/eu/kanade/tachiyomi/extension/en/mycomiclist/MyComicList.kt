@@ -142,7 +142,7 @@ class MyComicList : ParsedHttpSource() {
         val url = fixUrl(a.attr("href"))
         val name = a.text()
 
-        val dateText = element.selectFirst("span.date, span.time")?.text().orEmpty()
+        val dateText = element.selectFirst("span")?.text()?.trim().orEmpty()
 
         return SChapter.create().apply {
             setUrlWithoutDomain(toRelative(url))
