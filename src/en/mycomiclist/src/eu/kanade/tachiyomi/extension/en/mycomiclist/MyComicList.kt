@@ -152,9 +152,11 @@ class MyComicList : ParsedHttpSource() {
         }
     }
 
-    private fun extractChapterNumber(text: String): Float {
-        return Regex("""\d+(\.\d+)?""")
-            .find(text)
+    private fun extractChapterNumber(name: String): Float {
+        val afterHash = name.substringAfter('#', "").trim()
+
+        return Regex("""(\d+(\.\d+)?)\s*$""")
+            .find(afterHash)
             ?.value
             ?.toFloat()
             ?: -1f
