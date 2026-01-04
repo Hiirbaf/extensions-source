@@ -67,6 +67,7 @@ class MyComicList : ParsedHttpSource() {
             when (f) {
                 is TagFilter -> selectedTag = f.selected
                 is StateFilter -> selectedStatus = f.state
+                else -> Unit
             }
         }
 
